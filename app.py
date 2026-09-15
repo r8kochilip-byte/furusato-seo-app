@@ -16,7 +16,7 @@ portal_name = st.selectbox("1. 対象ポータルサイトを選択", ["楽天�
 search_keyword = st.text_input("2. 分析したいキーワードを入力", value="ハンバーグ")
 api_key = st.text_input("3. Gemini APIキーを入力", type="password")
 
-# 発行されたGAS URLをプリセット設定
+# 発行されたGAS URL
 DEFAULT_GAS_URL = "https://script.google.com/a/macros/uproject.jp/s/AKfycby6Vdg2dTPIldJ2pl99M9NXiEjUKLCmTBOf72odGuscQDrt6zmyTXlFJCgSsE2AuQRvCQ/exec"
 
 # --- スクレイピング関数 ---
@@ -103,8 +103,8 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
     mid_group = df.iloc[mid_start : mid_start + sample_n]
     low_group = df.tail(sample_n)
 
-    # Gemini 分析 (3.6-flash 指定)
-    with st.spinner("🤖 Gemini (3.6-flash) で分析レポートを生成中..."):
+    # Gemini 分析
+    with st.spinner("🤖 Gemini で分析レポートを生成中..."):
         genai.configure(api_key=api_key)
         try:
             model = genai.GenerativeModel('gemini-3.6-flash')
@@ -117,7 +117,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 中位平均: レビュー数 {mid_group['レビュー数'].mean():.1f}件, 評価 {mid_group['レビュー評価'].mean():.2f}, 寄付額 {mid_group['寄付金額'].mean():.0f}円
 下位平均: レビュー数 {low_group['レビュー数'].mean():.1f}件, 評価 {low_group['レビュー評価'].mean():.2f}, ★3.5未満率 {(low_group['レビュー評価'] < 3.5).mean() * 100:.1f}%
 """
-    PROMPT = """あなたは「ふるさと納税」のSEOスペシャリストです。提供されたデータに基づき、以下の5項目について分析レポートを作成してください。
+        PROMPT = """あなたは「ふるさと納税」のSEOスペシャリストです。提供されたデータに基づき、以下の5項目について分析レポートを作成してください。
 1. 定量差異（上位・中位・下位の比較）
 2. NG施策（避けるべきこと）
 3. 成功パターン（上位の共通点）
@@ -125,10 +125,11 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 5. アクションプラン（明日からやるべきこと）
 
 【厳守事項・フォーマットルール】
-・文章ではなく、必ずHTMLの表（<table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">）を多用して、視覚的にわかりやすく整理してください。
+・文章の羅列ではなく、必ずHTMLの表（<table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">）を多用して、視覚的にわかりやすく整理してください。
 ・各項目（1〜5）は <h2> タグで見出しにしてください。
 ・マークダウン記号（#、**、*、| など）は絶対に含めず、強調には <b> や <span style="color:red;"> などのHTMLタグを使用してください。
 ・```html などのコードブロック記法は一切不要です。HTMLの中身だけを出力してください。"""
+
         response = model.generate_content(PROMPT + "\n" + summary_text)
         report_text = response.text.replace("```html", "").replace("```", "").strip()
 
@@ -153,6 +154,6 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
         with col2:
             st.link_button("📊 スプレッドシートを開く", res_data.get("spreadsheetUrl"), use_container_width=True)
         st.divider()
-        st.markdown(report_text)
+        st.markdown(report_text, unsafe_allow_html=True)
     else:
         st.error(f"Google連携エラー: {res_data.get('message')}")
