@@ -117,9 +117,13 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 中位平均: レビュー数 {mid_group['レビュー数'].mean():.1f}件, 評価 {mid_group['レビュー評価'].mean():.2f}, 寄付額 {mid_group['寄付金額'].mean():.0f}円
 下位平均: レビュー数 {low_group['レビュー数'].mean():.1f}件, 評価 {low_group['レビュー評価'].mean():.2f}, ★3.5未満率 {(low_group['レビュー評価'] < 3.5).mean() * 100:.1f}%
 """
-        PROMPT = "あなたは「ふるさと納税」のSEOスペシャリストです。データに基づき1.定量差異 2.NG施策 3.成功パターン 4.加減点要因 5.アクションプラン を作成してください。"
+        PROMPT = """あなたは「ふるさと納税」のSEOスペシャリストです。データに基づき1.定量差異 2.NG施策 3.成功パターン 4.加減点要因 5.アクションプラン を作成してください。
+【重要ルール】
+・結果は簡潔に、必ずHTMLの表（<table>）や箇条書き（<ul>）を用いて視覚的にわかりやすく整理してください。
+・マークダウン記号（#、**、*、| など）は絶対に含めず、すべてHTMLタグ（<h1>、<h2>、<b> など）で装飾してください。
+・```html などのコードブロック記法は一切不要です。HTMLの中身だけを出力してください。"""
         response = model.generate_content(PROMPT + "\n" + summary_text)
-        report_text = response.text
+        report_text = response.text.replace("```html", "").replace("```", "").strip()
 
     # GASへデータ送信
     with st.spinner("📄 Googleドキュメント＆スプレッドシートを更新中..."):
