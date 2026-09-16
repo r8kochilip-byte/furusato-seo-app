@@ -8,74 +8,87 @@ import google.generativeai as genai
 
 st.set_page_config(page_title="全国絶品返礼品 SEO分析アナライザー", page_icon="🍱", layout="centered")
 
-# --- 華やかなデザイン（カスタムCSS） ---
+# --- 華やかな和風ライトデザイン（背景画像＋明るいUI） ---
 st.markdown("""
 <style>
-    /* 全体背景グラデーション */
+    /* 全体背景：和風イラスト画像＋明るいグラデーション overlay */
     .stApp {
-        background: linear-gradient(135deg, #1e1b2e 0%, #3a2d4c 50%, #1e1b2e 100%);
+        background-color: #fcfbfa;
+        background-image: 
+            linear-gradient(rgba(255, 253, 248, 0.85), rgba(255, 253, 248, 0.85)),
+            url("https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1200&q=80");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        color: #2c3e50;
     }
-    
+
     /* メインヘッダーカード */
     .hero-card {
-        background: rgba(255, 255, 255, 0.95);
+        background: #ffffff;
         border-radius: 18px;
         padding: 24px;
-        box-shadow: 0 12px 35px rgba(0,0,0,0.4);
+        box-shadow: 0 10px 30px rgba(184, 134, 11, 0.15);
         margin-bottom: 25px;
         color: #2c3e50;
-        border-top: 6px solid #ff4e50;
+        border: 2px solid #f3d9a2;
+        border-top: 6px solid #d90429;
     }
-    
+
     .hero-title {
         font-size: 26px !important;
         font-weight: 800;
-        background: linear-gradient(45deg, #d90429, #ffb703, #f72585);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #b81414;
         margin-bottom: 6px;
     }
-    
+
     .hero-subtitle {
         font-size: 13px;
         color: #4a5568;
         line-height: 1.6;
     }
-    
+
     .food-badges {
         display: flex;
         gap: 8px;
         margin-top: 14px;
         flex-wrap: wrap;
     }
-    
+
     .badge {
-        background: #fff3bf;
+        background: #fff9db;
         color: #d9480f;
         padding: 4px 12px;
         border-radius: 20px;
         font-size: 12px;
         font-weight: bold;
-        border: 1px solid #ffe066;
+        border: 1px solid #fab005;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
 
-    /* ボタンカスタマイズ（グラデーション＆拡大エフェクト） */
+    /* フォームラベル文字色 */
+    .stSelectbox label, .stTextInput label {
+        color: #1a1a1a !important;
+        font-weight: bold !important;
+        font-size: 15px !important;
+    }
+
+    /* ボタンカスタマイズ（朱色・和風グラデーション） */
     div.stButton > button {
-        background: linear-gradient(90deg, #ff4e50 0%, #f9d423 100%) !important;
+        background: linear-gradient(90deg, #d90429 0%, #ff6b6b 100%) !important;
         color: #ffffff !important;
         font-weight: bold !important;
         font-size: 18px !important;
         border: none !important;
         border-radius: 30px !important;
         padding: 14px 30px !important;
-        box-shadow: 0 6px 20px rgba(255, 78, 80, 0.4) !important;
+        box-shadow: 0 6px 20px rgba(217, 4, 41, 0.3) !important;
         transition: all 0.3s ease !important;
     }
-    
+
     div.stButton > button:hover {
         transform: translateY(-2px) scale(1.02);
-        box-shadow: 0 8px 25px rgba(255, 78, 80, 0.6) !important;
+        box-shadow: 0 8px 25px rgba(217, 4, 41, 0.5) !important;
     }
 </style>
 
