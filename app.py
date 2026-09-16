@@ -8,7 +8,7 @@ import google.generativeai as genai
 
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
-# --- デザイン設定（Zen Kaku Gothic New + 薄ピンク結果カード＋折り返し防止CSS） ---
+# --- デザイン設定（Zen Kaku Gothic New + 表の列幅均等・縦潰れ防止CSS） ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
@@ -105,6 +105,7 @@ st.markdown("""
         border: 2px solid #f7c5cc !important;
         margin-top: 25px !important;
         color: #2c3e50 !important;
+        overflow-x: auto !important;
     }
 
     .report-card h2 {
@@ -116,7 +117,7 @@ st.markdown("""
         font-weight: 700 !important;
     }
 
-    /* テーブルの折り返し防止・装飾 */
+    /* テーブルのレイアウト調整（縦潰れ・極端な偏りを防止） */
     .report-card table {
         width: 100% !important;
         border-collapse: collapse !important;
@@ -125,10 +126,11 @@ st.markdown("""
         overflow: hidden !important;
         margin: 15px 0 !important;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+        table-layout: auto !important;
     }
 
     .report-card th {
-        white-space: nowrap !important; /* 見出しの折り返し（2行化）を絶対防止 */
+        white-space: nowrap !important;
         background-color: #b82e3e !important;
         color: #ffffff !important;
         padding: 10px 12px !important;
@@ -141,8 +143,15 @@ st.markdown("""
         border: 1px solid #f0d0d5 !important;
         color: #2c3e50 !important;
         font-size: 13px !important;
-        vertical-align: middle !important;
+        vertical-align: top !important;
+        word-break: break-word !important;
+        line-height: 1.5 !important;
     }
+
+    /* 各列の最小幅（極端な圧迫を防止） */
+    .report-card td:nth-child(1), .report-card th:nth-child(1) { min-width: 80px !important; }
+    .report-card td:nth-child(2), .report-card th:nth-child(2) { min-width: 130px !important; }
+    .report-card td:nth-child(3), .report-card th:nth-child(3) { min-width: 180px !important; }
 </style>
 
 <div class="hero-card">
@@ -312,7 +321,8 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 7. 【指定返礼品の個別改善指導】（※特別診断対象データがある場合、現在の「商品名」「説明文」を踏まえた具体修正案・写真構図指示を表形式で出力）
 
 【厳守事項・フォーマットルール】
-・すべての表（<table>）の <th> タグには style="white-space: nowrap;" を必ず付与し、見出し項目（「順位」「サムネイル」「商品名」「寄付額」「レビュー評価」「ビジュアルと特徴」など）が絶対に2行に改行されないよう横1行で出力してください。
+・すべての表（<table>）の <th> タグには style="white-space: nowrap;" を必ず付与し、見出し項目が絶対に2行に改行されないよう横1行で出力してください。
+・各表の列幅（width）は特定の列だけが極端に広くなったり狭くなったりしないよう、内容量に応じて自然で均等なバランスに調整してください。
 ・「1. 上位3商品のビジュアルと特徴」では、提供された画像URLを使い、必ず <img src="画像URL" width="120"> というHTMLタグにして、表の中にサムネイル画像が表示されるようにしてください。
 ・文章の羅列ではなく、必ずHTMLの表（<table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">）を多用して、視覚的にわかりやすく整理してください。
 ・各項目は <h2> タグで見出しにしてください。
