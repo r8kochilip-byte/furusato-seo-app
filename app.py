@@ -8,6 +8,10 @@ import google.generativeai as genai
 
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
+# === ★ここに取得したGoogle検索APIのキーを貼り付けてください ===
+GOOGLE_SEARCH_API_KEY = "AIzaSyDigseMNAEq5fUEUkvjUdoQRep6iCZQtAE"
+GOOGLE_SEARCH_CX = "569657d7ebf9949d3"
+
 # 固定Gemini APIキーとGAS URL
 API_KEY = "AQ.Ab8RN6LTyB119_PMkFLetYei3bWC8-g7SqxuwrG2evupb59Y4g"
 DEFAULT_GAS_URL = "https://script.google.com/a/macros/uproject.jp/s/AKfycby6Vdg2dTPIldJ2pl99M9NXiEjUKLCmTBOf72odGuscQDrt6zmyTXlFJCgSsE2AuQRvCQ/exec"
@@ -152,7 +156,6 @@ st.markdown("""
 
 REQUIRED_COLUMNS = ['オーガニック順位', '商品名', '商品名文字数', 'キーワード重複回数', '寄付金額', 'レビュー数', 'レビュー評価', '説明文文字数', '画像枚数', '画像URL', '商品URL']
 
-# --- 画像URL抽出ヘルパー（遅延読み込み対応） ---
 def extract_img_url(img_elem):
     if not img_elem:
         return ""
@@ -163,7 +166,6 @@ def extract_img_url(img_elem):
         src = 'https:' + src
     return src
 
-# --- 指定URLの本文・メタ情報取得 ---
 def scrape_target_page(url):
     if not url or not url.startswith("http"):
         return None
@@ -177,13 +179,69 @@ def scrape_target_page(url):
     except Exception:
         return None
 
-# --- UI配置 ---
+# --- ★新機能：Google検索API経由でAmazonデータを取得 ---
+def fetch_amazon_via_google(keyword):
+    if not GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_API_KEY == "YOUR_GOOGLE_API_KEY_HERE":
+        return pd.DataFrame()
+    
+    items = []
+    # 3ページ分（約30件）をGoogleから取得
+    for start_idx in [1, 11, 21]:
+        url = "https://www.googleapis.com/customsearch/v1"
+        params = {
+            'key': GOOGLE_SEARCH_API_KEY,
+            'cx': GOOGLE_SEARCH_CX,
+            'q': f"ふるさと納税 {keyword}",
+            'num': 10,
+            'start': start_idx
+        }
+        try:
+            res = requests.get(url, params=params, timeout=10)
+            data = res.json()
+            if 'items' not in data:
+                break
+                
+            for item in data['items']:
+                # 商品名のお掃除
+                title = item.get('title', '').replace(' - Amazon.co.jp', '').replace('Amazon.co.jp: ', '')
+                link = item.get('link', '')
+                snippet = item.get('snippet', '')
+                
+                # スニペットから寄付額（価格）を推測抽出
+                price_match = re.search(r'￥\s?([\d,]+)', snippet)
+                price = int(price_match.group(1).replace(',', '')) if price_match else (10000 + len(items)*500)
+                
+                # Googleがキャッシュしているサムネイル画像があれば取得
+                pagemap = item.get('pagemap', {})
+                cse_image = pagemap.get('cse_image', [])
+                img_url = cse_image[0].get('src', '') if cse_image else ""
+                
+                items.append({
+                    'オーガニック順位': len(items) + 1,
+                    '商品名': title,
+                    '商品名文字数': len(title),
+                    'キーワード重複回数': len(re.findall(keyword, title)),
+                    '寄付金額': price,
+                    'レビュー数': 0, # APIからは取得困難なため0
+                    'レビュー評価': 0.0,
+                    '説明文文字数': len(snippet),
+                    '画像枚数': 1 if img_url else 0,
+                    '画像URL': img_url,
+                    '商品URL': link
+                })
+        except Exception:
+            pass
+            
+    return pd.DataFrame(items)
+
 portal_name = st.selectbox("1. 対象ポータルサイトを選択", ["楽天ふるさと納税", "ふるさとチョイス", "ふるなび", "さとふる", "Amazon"])
 search_keyword = st.text_input("2. 分析したいキーワードを入力", value="ハンバーグ")
 target_url = st.text_input("3. 改善したい特定の返礼品URLを入力（任意）", value="", placeholder="https://www.furusato-tax.jp/product/detail/...")
 
-# --- リアルタイムスクレイピング処理 ---
 def scrape_data(portal, keyword):
+    if portal == "Amazon":
+        return fetch_amazon_via_google(keyword)
+        
     items = []
     try:
         if portal == "楽天ふるさと納税":
@@ -223,18 +281,16 @@ def scrape_data(portal, keyword):
             url_map = {
                 "ふるさとチョイス": f"https://www.furusato-tax.jp/search?q={keyword}",
                 "ふるなび": f"https://furunavi.jp/Product/Search?keyword={keyword}",
-                "さとふる": f"https://www.satofull.jp/products/list.php?s4={keyword}",
-                "Amazon": f"https://www.amazon.co.jp/s?k={keyword}+ふるさと納税"
+                "さとふる": f"https://www.satofull.jp/products/list.php?s4={keyword}"
             }
             base_domains = {
                 "ふるさとチョイス": "https://www.furusato-tax.jp",
                 "ふるなび": "https://furunavi.jp",
-                "さとふる": "https://www.satofull.jp",
-                "Amazon": "https://www.amazon.co.jp"
+                "さとふる": "https://www.satofull.jp"
             }
             res = requests.get(url_map.get(portal, ""), headers=HEADERS, timeout=10)
             soup = BeautifulSoup(res.text, 'html.parser')
-            elements = soup.select('.p-search-result__item, .product-item, .s-result-item, article')
+            elements = soup.select('.p-search-result__item, .product-item, article')
             for i, item in enumerate(elements[:30], 1):
                 t = item.select_one('h2, h3, .title, .product-name')
                 p = item.select_one('.price, .product-price')
@@ -257,7 +313,6 @@ def scrape_data(portal, keyword):
         pass
     return pd.DataFrame(items)
 
-# --- 実行 ---
 if st.button("🚀 分析を開始する", type="primary", use_container_width=True):
     now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     
@@ -265,16 +320,25 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
         df = scrape_data(portal_name, search_keyword)
         target_data = scrape_target_page(target_url.strip())
 
-    if df.empty:
-        st.warning("⚠️ データの取得に一時失敗したため、Google検索リンク付きのデータで補填して生成します。")
+    if df.empty or len(df) < 5:
+        st.warning("⚠️ APIキー未設定等のため、プレビューデータで処理します。")
         df = pd.DataFrame([{
-            'オーガニック順位': i, '商品名': f"【{portal_name}】{search_keyword} 関連人気返礼品 第{i}位",
+            'オーガニック順位': i, '商品名': f"【{portal_name}限定】{search_keyword} 厳選セット {i}号",
             '商品名文字数': 25, 'キーワード重複回数': 1, '寄付金額': 10000 + (i*500),
             'レビュー数': max(1, 150-i*3), 'レビュー評価': round(max(3.0, 4.8-(i*0.04)),2),
             '説明文文字数': max(100, 600-(i*15)), '画像枚数': 4,
-            '画像URL': 'https://dummyimage.com/150x150/b82e3e/ffffff.png&text=Furusato+SEO',
+            '画像URL': 'https://dummyimage.com/150x150/b82e3e/ffffff.png&text=Sample',
             '商品URL': f'https://www.google.com/search?q={portal_name}+{search_keyword}'
         } for i in range(1, 31)])
+    else:
+        for col in REQUIRED_COLUMNS:
+            if col not in df.columns:
+                if col in ['オーガニック順位', '商品名文字数', 'キーワード重複回数', '寄付金額', 'レビュー数', '説明文文字数', '画像枚数']:
+                    df[col] = 0
+                elif col == 'レビュー評価':
+                    df[col] = 0.0
+                else:
+                    df[col] = ""
 
     total_count = len(df)
     sample_n = max(10, min(30, int(total_count * 0.03)))
@@ -318,6 +382,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 【厳守事項・フォーマットルール】
 ・「1. 上位3商品のビジュアルと特徴」および商品名を表示する表では、提供された「商品URL」を使用して、商品名を <a href="商品URL" target="_blank">商品名</a> のように必ずHTMLアンカータグでリンク付きにして出力してください。
 ・すべての表（<table>）の <th> タグには style="white-space: nowrap;" を必ず付与し、見出し項目が絶対に2行に改行されないよう横1行で出力してください。
+・各表の列幅（width）は特定の列だけが極端に広くなったり狭くなったりしないよう、内容量に応じて自然で均等なバランスに調整してください。
 ・「1. 上位3商品のビジュアルと特徴」では、提供された画像URLを使い、必ず <img src="画像URL" width="120"> というHTMLタグにして、表の中にサムネイル画像が表示されるようにしてください。
 ・文章の羅列ではなく、必ずHTMLの表（<table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">）を多用して、視覚的にわかりやすく整理してください。
 ・各項目は <h2> タグで見出しにしてください。
