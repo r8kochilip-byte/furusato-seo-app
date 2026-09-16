@@ -6,9 +6,93 @@ from bs4 import BeautifulSoup
 import requests
 import google.generativeai as genai
 
-st.set_page_config(page_title="ふるさと納税 SEO分析アプリ", page_icon="🔍", layout="centered")
+st.set_page_config(page_title="全国絶品返礼品 SEO分析アナライザー", page_icon="🍱", layout="centered")
 
-st.title("🔍 ふるさと納税 SEO分析システム")
+# --- 華やかなデザイン（カスタムCSS） ---
+st.markdown("""
+<style>
+    /* 全体背景グラデーション */
+    .stApp {
+        background: linear-gradient(135deg, #1e1b2e 0%, #3a2d4c 50%, #1e1b2e 100%);
+    }
+    
+    /* メインヘッダーカード */
+    .hero-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 18px;
+        padding: 24px;
+        box-shadow: 0 12px 35px rgba(0,0,0,0.4);
+        margin-bottom: 25px;
+        color: #2c3e50;
+        border-top: 6px solid #ff4e50;
+    }
+    
+    .hero-title {
+        font-size: 26px !important;
+        font-weight: 800;
+        background: linear-gradient(45deg, #d90429, #ffb703, #f72585);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 6px;
+    }
+    
+    .hero-subtitle {
+        font-size: 13px;
+        color: #4a5568;
+        line-height: 1.6;
+    }
+    
+    .food-badges {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+        flex-wrap: wrap;
+    }
+    
+    .badge {
+        background: #fff3bf;
+        color: #d9480f;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        border: 1px solid #ffe066;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    /* ボタンカスタマイズ（グラデーション＆拡大エフェクト） */
+    div.stButton > button {
+        background: linear-gradient(90deg, #ff4e50 0%, #f9d423 100%) !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+        font-size: 18px !important;
+        border: none !important;
+        border-radius: 30px !important;
+        padding: 14px 30px !important;
+        box-shadow: 0 6px 20px rgba(255, 78, 80, 0.4) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    div.stButton > button:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(255, 78, 80, 0.6) !important;
+    }
+</style>
+
+<div class="hero-card">
+    <div class="hero-title">🍱 全国絶品返礼品 SEO分析アナライザー</div>
+    <div class="hero-subtitle">
+        全国の魅力あふれる特産品・豪華返礼品を競合データから徹底比較！<br>
+        AIが上位表示のための成功パターンと具体的な改善アクションを自動診断します。
+    </div>
+    <div class="food-badges">
+        <span class="badge">🥩 銘柄和牛</span>
+        <span class="badge">🦀 採れたて海鮮</span>
+        <span class="badge">🍇 旬の高級フルーツ</span>
+        <span class="badge">🍚 厳選米・地酒</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # 固定APIキーとGAS URL
 API_KEY = "AQ.Ab8RN6LTyB119_PMkFLetYei3bWC8-g7SqxuwrG2evupb59Y4g"
@@ -38,12 +122,9 @@ def scrape_target_page(url):
         res = requests.get(url, headers=HEADERS, timeout=10)
         soup = BeautifulSoup(res.text, 'html.parser')
         
-        # タイトル・説明文・メイン画像の取得
         title = soup.find('h1').text.strip() if soup.find('h1') else (soup.title.text.strip() if soup.title else "タイトル未取得")
-        
         meta_desc = soup.find('meta', {'name': 'description'}) or soup.find('meta', {'property': 'og:description'})
         description = meta_desc['content'].strip() if meta_desc and meta_desc.get('content') else soup.get_text()[:400].replace('\n', ' ')
-        
         og_img = soup.find('meta', {'property': 'og:image'})
         img_url = og_img['content'] if og_img and og_img.get('content') else ""
         
@@ -117,7 +198,7 @@ def scrape_data(portal, keyword):
     return pd.DataFrame(items)
 
 # --- 実行ボタン ---
-if st.button("🚀 分析を開始する", type="primary", use_container_width=True):
+if st.button("🚀 絶品SEO分析を開始する", type="primary", use_container_width=True):
     now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     
     with st.spinner("データ取得中..."):
@@ -174,7 +255,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 ・「1. 上位3商品のビジュアルと特徴」では、提供された画像URLを使い、必ず <img src="画像URL" width="120"> というHTMLタグにして、表の中にサムネイル画像が表示されるようにしてください。
 ・文章の羅列ではなく、必ずHTMLの表（<table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">）を多用して、視覚的にわかりやすく整理してください。
 ・各項目は <h2> タグで見出しにしてください。
-・マークダウン記号（#、**、*、| など）は絶対に含めず、強調には <b> や <span style="color:red;"> を使用してください。
+・マークダウン記号（#、**、*, | など）は絶対に含めず、強調には <b> や <span style="color:red;"> を使用してください。
 ・```html などのコードブロック記法は一切不要です。HTMLの中身だけを出力してください。"""
 
         response = model.generate_content(PROMPT + "\n" + summary_text)
