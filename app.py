@@ -8,7 +8,17 @@ import google.generativeai as genai
 
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
-# --- デザイン設定（Zen Kaku Gothic New + 薄ピンク結果カード＋表レイアウト最適化） ---
+# 固定Gemini APIキーとGAS URL
+API_KEY = "AQ.Ab8RN6LTyB119_PMkFLetYei3bWC8-g7SqxuwrG2evupb59Y4g"
+DEFAULT_GAS_URL = "https://script.google.com/a/macros/uproject.jp/s/AKfycby6Vdg2dTPIldJ2pl99M9NXiEjUKLCmTBOf72odGuscQDrt6zmyTXlFJCgSsE2AuQRvCQ/exec"
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8"
+}
+
+# --- デザイン設定（Zen Kaku Gothic New + サーモンピンク背景 + 深紅UI） ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
@@ -17,7 +27,6 @@ st.markdown("""
         font-family: 'Zen Kaku Gothic New', sans-serif !important;
     }
 
-    /* 全体背景 */
     .stApp {
         background-color: #fcece9;
         background-image: 
@@ -29,7 +38,6 @@ st.markdown("""
         color: #2c3e50;
     }
 
-    /* メインヘッダーカード */
     .hero-card {
         background: #ffffff;
         border-radius: 18px;
@@ -41,44 +49,20 @@ st.markdown("""
         border-top: 6px solid #b82e3e;
     }
 
-    .hero-title {
-        font-size: 26px !important;
-        font-weight: 700;
-        color: #b82e3e;
-        margin-bottom: 6px;
-    }
+    .hero-title { font-size: 26px !important; font-weight: 700; color: #b82e3e; margin-bottom: 6px; }
+    .hero-subtitle { font-size: 14px; color: #5a4b4e; line-height: 1.6; font-weight: 500; }
 
-    .hero-subtitle {
-        font-size: 14px;
-        color: #5a4b4e;
-        line-height: 1.6;
-        font-weight: 500;
-    }
+    .stSelectbox label, .stTextInput label { color: #2c3e50 !important; font-weight: 700 !important; font-size: 15px !important; }
 
-    /* フォームラベル */
-    .stSelectbox label, .stTextInput label {
-        color: #2c3e50 !important;
-        font-weight: 700 !important;
-        font-size: 15px !important;
-    }
-
-    /* 入力エリア */
     div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {
         background-color: #b82e3e !important;
         border-radius: 10px !important;
         border: none !important;
     }
     
-    div[data-baseweb="select"] span, input {
-        color: #ffffff !important;
-        font-weight: 500 !important;
-    }
-    
-    input::placeholder {
-        color: #f7cfc8 !important;
-    }
+    div[data-baseweb="select"] span, input { color: #ffffff !important; font-weight: 500 !important; }
+    input::placeholder { color: #f7cfc8 !important; }
 
-    /* ボタン */
     div.stButton > button {
         background: linear-gradient(90deg, #b82e3e 0%, #c83246 100%) !important;
         color: #ffffff !important;
@@ -96,7 +80,6 @@ st.markdown("""
         box-shadow: 0 8px 25px rgba(184, 46, 62, 0.55) !important;
     }
 
-    /* 分析結果表示エリア（見やすい薄ピンクのカード枠） */
     .report-card {
         background: rgba(255, 245, 246, 0.96) !important;
         border-radius: 16px !important;
@@ -117,7 +100,6 @@ st.markdown("""
         font-weight: 700 !important;
     }
 
-    /* テーブルのレイアウト調整 */
     .report-card table {
         width: 100% !important;
         border-collapse: collapse !important;
@@ -148,12 +130,10 @@ st.markdown("""
         line-height: 1.5 !important;
     }
 
-    /* 各列の最小幅設定 */
     .report-card td:nth-child(1), .report-card th:nth-child(1) { min-width: 80px !important; }
     .report-card td:nth-child(2), .report-card th:nth-child(2) { min-width: 130px !important; }
     .report-card td:nth-child(3), .report-card th:nth-child(3) { min-width: 180px !important; }
 
-    /* 商品リンク装飾 */
     .report-card a {
         color: #b82e3e !important;
         font-weight: bold !important;
@@ -170,18 +150,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 固定APIキーとGAS URL
-API_KEY = "AQ.Ab8RN6LTyB119_PMkFLetYei3bWC8-g7SqxuwrG2evupb59Y4g"
-DEFAULT_GAS_URL = "https://script.google.com/a/macros/uproject.jp/s/AKfycby6Vdg2dTPIldJ2pl99M9NXiEjUKLCmTBOf72odGuscQDrt6zmyTXlFJCgSsE2AuQRvCQ/exec"
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8"
-}
-
 REQUIRED_COLUMNS = ['オーガニック順位', '商品名', '商品名文字数', 'キーワード重複回数', '寄付金額', 'レビュー数', 'レビュー評価', '説明文文字数', '画像枚数', '画像URL', '商品URL']
 
-# --- 画像URL抽出ヘルパー ---
+# --- 画像URL抽出ヘルパー（遅延読み込み対応） ---
 def extract_img_url(img_elem):
     if not img_elem:
         return ""
@@ -199,28 +170,19 @@ def scrape_target_page(url):
     try:
         res = requests.get(url, headers=HEADERS, timeout=10)
         soup = BeautifulSoup(res.text, 'html.parser')
-        
         title = soup.find('h1').text.strip() if soup.find('h1') else (soup.title.text.strip() if soup.title else "タイトル未取得")
         meta_desc = soup.find('meta', {'name': 'description'}) or soup.find('meta', {'property': 'og:description'})
         description = meta_desc['content'].strip() if meta_desc and meta_desc.get('content') else soup.get_text()[:400].replace('\n', ' ')
-        og_img = soup.find('meta', {'property': 'og:image'})
-        img_url = og_img['content'] if og_img and og_img.get('content') else ""
-        
-        return {
-            "url": url,
-            "title": title,
-            "description": description[:300],
-            "img_url": img_url
-        }
+        return {"url": url, "title": title, "description": description[:300]}
     except Exception:
         return None
 
-# --- 設定入力 ---
+# --- UI配置 ---
 portal_name = st.selectbox("1. 対象ポータルサイトを選択", ["楽天ふるさと納税", "ふるさとチョイス", "ふるなび", "さとふる", "Amazon"])
 search_keyword = st.text_input("2. 分析したいキーワードを入力", value="ハンバーグ")
 target_url = st.text_input("3. 改善したい特定の返礼品URLを入力（任意）", value="", placeholder="https://www.furusato-tax.jp/product/detail/...")
 
-# --- ポータル検索データ取得（商品URL取得を追加） ---
+# --- リアルタイムスクレイピング処理 ---
 def scrape_data(portal, keyword):
     items = []
     try:
@@ -228,21 +190,23 @@ def scrape_data(portal, keyword):
             url = f"https://search.rakuten.co.jp/search/event/furusato/?s=4&v=2&kw={keyword}"
             res = requests.get(url, headers=HEADERS, timeout=10)
             soup = BeautifulSoup(res.text, 'html.parser')
-            search_items = soup.select('div.searchresultitem') or soup.select('div.item')
+            search_items = soup.select('div.searchresultitem') or soup.select('div.item') or soup.select('.grid-item')
             for i, item in enumerate(search_items, 1):
                 if item.select_one('.pr-label') or item.select_one('.sponsor-label'): continue
                 t = item.select_one('h2') or item.select_one('.title') or item.select_one('a.item-name')
                 p = item.select_one('.price') or item.select_one('.important')
                 link_elem = item.select_one('a.item-name') or item.select_one('a')
                 img_url = extract_img_url(item.select_one('img'))
-                title = t.text.strip() if t else "タイトル取得失敗"
-                price = int(re.sub(r'[^\d]', '', p.text)) if p else 0
                 
+                title = t.text.strip() if t else ""
+                if not title: continue
+                
+                price = int(re.sub(r'[^\d]', '', p.text)) if p else 0
                 prod_url = link_elem.get('href') if link_elem else ""
                 if prod_url.startswith('//'): prod_url = 'https:' + prod_url
                 
                 review_count, review_score = 0, 0.0
-                review_elem = item.select_one('.legend') or item.select_one('.score')
+                review_elem = item.select_one('.legend') or item.select_one('.score') or item.select_one('.ratting')
                 if review_elem:
                     cm = re.search(r'([\d,]+)件', review_elem.text)
                     if cm: review_count = int(cm.group(1).replace(',', ''))
@@ -276,12 +240,12 @@ def scrape_data(portal, keyword):
                 p = item.select_one('.price, .product-price')
                 link_elem = item.select_one('a')
                 img_url = extract_img_url(item.select_one('img'))
-                title = t.text.strip() if t else f"{portal} {keyword} 掲載商品 {i}"
-                price = int(re.sub(r'[^\d]', '', p.text)) if p else (10000 + i*500)
+                title = t.text.strip() if t else ""
+                if not title: continue
                 
+                price = int(re.sub(r'[^\d]', '', p.text)) if p else (10000 + i*500)
                 prod_url = link_elem.get('href') if link_elem else ""
-                if prod_url.startswith('/'):
-                    prod_url = base_domains.get(portal, "") + prod_url
+                if prod_url.startswith('/'): prod_url = base_domains.get(portal, "") + prod_url
                 
                 items.append({
                     'オーガニック順位': i, '商品名': title, '商品名文字数': len(title),
@@ -291,35 +255,26 @@ def scrape_data(portal, keyword):
                 })
     except Exception:
         pass
-            
     return pd.DataFrame(items)
 
-# --- 実行ボタン ---
+# --- 実行 ---
 if st.button("🚀 分析を開始する", type="primary", use_container_width=True):
     now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     
-    with st.spinner("データ取得中..."):
+    with st.spinner("本物のデータを取得中..."):
         df = scrape_data(portal_name, search_keyword)
         target_data = scrape_target_page(target_url.strip())
 
-    if df.empty or len(df) < 5:
+    if df.empty:
+        st.warning("⚠️ データの取得に一時失敗したため、Google検索リンク付きのデータで補填して生成します。")
         df = pd.DataFrame([{
-            'オーガニック順位': i, '商品名': f"【{portal_name}】{search_keyword} 厳選特選 {i}kg",
+            'オーガニック順位': i, '商品名': f"【{portal_name}】{search_keyword} 関連人気返礼品 第{i}位",
             '商品名文字数': 25, 'キーワード重複回数': 1, '寄付金額': 10000 + (i*500),
             'レビュー数': max(1, 150-i*3), 'レビュー評価': round(max(3.0, 4.8-(i*0.04)),2),
-            '説明文文字数': max(100, 600-(i*15)), '画像枚数': max(1, 6-(i//8)),
-            '画像URL': 'https://via.placeholder.com/150?text=No+Image',
-            '商品URL': 'https://www.google.com'
+            '説明文文字数': max(100, 600-(i*15)), '画像枚数': 4,
+            '画像URL': 'https://dummyimage.com/150x150/b82e3e/ffffff.png&text=Furusato+SEO',
+            '商品URL': f'https://www.google.com/search?q={portal_name}+{search_keyword}'
         } for i in range(1, 31)])
-    else:
-        for col in REQUIRED_COLUMNS:
-            if col not in df.columns:
-                if col in ['オーガニック順位', '商品名文字数', 'キーワード重複回数', '寄付金額', 'レビュー数', '説明文文字数', '画像枚数']:
-                    df[col] = 0
-                elif col == 'レビュー評価':
-                    df[col] = 0.0
-                else:
-                    df[col] = ""
 
     total_count = len(df)
     sample_n = max(10, min(30, int(total_count * 0.03)))
@@ -328,27 +283,19 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
     mid_group = df.iloc[mid_start : mid_start + sample_n]
     low_group = df.tail(sample_n)
 
-    with st.spinner("レポート作成中..."):
+    with st.spinner("AIレポート作成中..."):
         genai.configure(api_key=API_KEY)
         model = genai.GenerativeModel('gemini-2.5-flash')
 
         top3_info = "▼ 上位3商品の詳細（画像・商品URLあり）\n"
         for idx, row in top_group.head(3).iterrows():
-            img_src = row['画像URL'] if row['画像URL'] else "https://via.placeholder.com/150?text=No+Image"
+            img_src = row['画像URL'] if row['画像URL'] else "https://dummyimage.com/150x150/b82e3e/ffffff.png&text=No+Image"
             prod_link = row['商品URL'] if row['商品URL'] else "#"
             top3_info += f"【{row['オーガニック順位']}位】 寄付額:{row['寄付金額']}円, レビュー評価:{row['レビュー評価']}, 画像URL:{img_src}, 商品URL:{prod_link}, 商品名:{row['商品名']}\n"
 
         target_info_text = ""
         if target_data:
-            target_info_text = f"""
-▼ 【特別診断対象返礼品の実際の解析データ】
-・対象URL: {target_data['url']}
-・現在の登録商品名: {target_data['title']}
-・現在のページ説明文抜粋: {target_data['description']}
-※上記の実データを上位3商品および成功パターンと比較し、具体的な改善策を出力してください。
-"""
-        elif target_url.strip():
-            target_info_text = f"\n【特別診断対象URL】: {target_url}\n（※URL本文の自動取得に失敗したため、URL情報をもとに分析します）"
+            target_info_text = f"\n▼ 【特別診断対象返礼品】\nURL: {target_data['url']}\n現在の商品名: {target_data['title']}\n説明文抜粋: {target_data['description']}\n"
 
         summary_text = f"""
 対象ポータル: {portal_name} / キーワード: {search_keyword} / 日時: {now_str}
@@ -369,9 +316,8 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 7. 【指定返礼品の個別改善指導】（※特別診断対象データがある場合、現在の「商品名」「説明文」を踏まえた具体修正案・写真構図指示を表形式で出力）
 
 【厳守事項・フォーマットルール】
-・「1. 上位3商品のビジュアルと特徴」および商品名を表示する表では、提供された「商品URL」を使用して、商品名を <a href="商品URL" target="_blank">商品名</a> のように必ずHTMLアンカータグでリンク付きにして出力してください。クリックで対象ページが開くようにします。
+・「1. 上位3商品のビジュアルと特徴」および商品名を表示する表では、提供された「商品URL」を使用して、商品名を <a href="商品URL" target="_blank">商品名</a> のように必ずHTMLアンカータグでリンク付きにして出力してください。
 ・すべての表（<table>）の <th> タグには style="white-space: nowrap;" を必ず付与し、見出し項目が絶対に2行に改行されないよう横1行で出力してください。
-・各表の列幅（width）は特定の列だけが極端に広くなったり狭くなったりしないよう、内容量に応じて自然で均等なバランスに調整してください。
 ・「1. 上位3商品のビジュアルと特徴」では、提供された画像URLを使い、必ず <img src="画像URL" width="120"> というHTMLタグにして、表の中にサムネイル画像が表示されるようにしてください。
 ・文章の羅列ではなく、必ずHTMLの表（<table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">）を多用して、視覚的にわかりやすく整理してください。
 ・各項目は <h2> タグで見出しにしてください。
