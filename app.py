@@ -152,6 +152,13 @@ st.markdown("""
     .report-card td:nth-child(1), .report-card th:nth-child(1) { min-width: 80px !important; }
     .report-card td:nth-child(2), .report-card th:nth-child(2) { min-width: 130px !important; }
     .report-card td:nth-child(3), .report-card th:nth-child(3) { min-width: 180px !important; }
+
+    /* 商品リンク装飾 */
+    .report-card a {
+        color: #b82e3e !important;
+        font-weight: bold !important;
+        text-decoration: underline !important;
+    }
 </style>
 
 <div class="hero-card">
@@ -172,9 +179,9 @@ HEADERS = {
     "Accept-Language": "ja,en-US;q=0.9,en;q=0.8"
 }
 
-REQUIRED_COLUMNS = ['オーガニック順位', '商品名', '商品名文字数', 'キーワード重複回数', '寄付金額', 'レビュー数', 'レビュー評価', '説明文文字数', '画像枚数', '画像URL']
+REQUIRED_COLUMNS = ['オーガニック順位', '商品名', '商品名文字数', 'キーワード重複回数', '寄付金額', 'レビュー数', 'レビュー評価', '説明文文字数', '画像枚数', '画像URL', '商品URL']
 
-# --- 画像URL抽出ヘルパー（遅延読み込み対応） ---
+# --- 画像URL抽出ヘルパー ---
 def extract_img_url(img_elem):
     if not img_elem:
         return ""
@@ -213,7 +220,7 @@ portal_name = st.selectbox("1. 対象ポータルサイトを選択", ["楽天�
 search_keyword = st.text_input("2. 分析したいキーワードを入力", value="ハンバーグ")
 target_url = st.text_input("3. 改善したい特定の返礼品URLを入力（任意）", value="", placeholder="https://www.furusato-tax.jp/product/detail/...")
 
-# --- ポータル検索データ取得 ---
+# --- ポータル検索データ取得（商品URL取得を追加） ---
 def scrape_data(portal, keyword):
     items = []
     try:
@@ -226,9 +233,13 @@ def scrape_data(portal, keyword):
                 if item.select_one('.pr-label') or item.select_one('.sponsor-label'): continue
                 t = item.select_one('h2') or item.select_one('.title') or item.select_one('a.item-name')
                 p = item.select_one('.price') or item.select_one('.important')
+                link_elem = item.select_one('a.item-name') or item.select_one('a')
                 img_url = extract_img_url(item.select_one('img'))
                 title = t.text.strip() if t else "タイトル取得失敗"
                 price = int(re.sub(r'[^\d]', '', p.text)) if p else 0
+                
+                prod_url = link_elem.get('href') if link_elem else ""
+                if prod_url.startswith('//'): prod_url = 'https:' + prod_url
                 
                 review_count, review_score = 0, 0.0
                 review_elem = item.select_one('.legend') or item.select_one('.score')
@@ -242,7 +253,7 @@ def scrape_data(portal, keyword):
                     'オーガニック順位': i, '商品名': title, '商品名文字数': len(title),
                     'キーワード重複回数': len(re.findall(keyword, title)), '寄付金額': price,
                     'レビュー数': review_count, 'レビュー評価': review_score,
-                    '説明文文字数': len(title) * 3, '画像枚数': 5, '画像URL': img_url
+                    '説明文文字数': len(title) * 3, '画像枚数': 5, '画像URL': img_url, '商品URL': prod_url
                 })
         else:
             url_map = {
@@ -251,20 +262,32 @@ def scrape_data(portal, keyword):
                 "さとふる": f"https://www.satofull.jp/products/list.php?s4={keyword}",
                 "Amazon": f"https://www.amazon.co.jp/s?k={keyword}+ふるさと納税"
             }
+            base_domains = {
+                "ふるさとチョイス": "https://www.furusato-tax.jp",
+                "ふるなび": "https://furunavi.jp",
+                "さとふる": "https://www.satofull.jp",
+                "Amazon": "https://www.amazon.co.jp"
+            }
             res = requests.get(url_map.get(portal, ""), headers=HEADERS, timeout=10)
             soup = BeautifulSoup(res.text, 'html.parser')
             elements = soup.select('.p-search-result__item, .product-item, .s-result-item, article')
             for i, item in enumerate(elements[:30], 1):
                 t = item.select_one('h2, h3, .title, .product-name')
                 p = item.select_one('.price, .product-price')
+                link_elem = item.select_one('a')
                 img_url = extract_img_url(item.select_one('img'))
                 title = t.text.strip() if t else f"{portal} {keyword} 掲載商品 {i}"
                 price = int(re.sub(r'[^\d]', '', p.text)) if p else (10000 + i*500)
+                
+                prod_url = link_elem.get('href') if link_elem else ""
+                if prod_url.startswith('/'):
+                    prod_url = base_domains.get(portal, "") + prod_url
+                
                 items.append({
                     'オーガニック順位': i, '商品名': title, '商品名文字数': len(title),
                     'キーワード重複回数': len(re.findall(keyword, title)), '寄付金額': price,
                     'レビュー数': max(1, 120-i*3), 'レビュー評価': round(max(3.5, 4.8-(i*0.04)),2),
-                    '説明文文字数': len(title)*2, '画像枚数': 4, '画像URL': img_url
+                    '説明文文字数': len(title)*2, '画像枚数': 4, '画像URL': img_url, '商品URL': prod_url
                 })
     except Exception:
         pass
@@ -279,14 +302,14 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
         df = scrape_data(portal_name, search_keyword)
         target_data = scrape_target_page(target_url.strip())
 
-    # データ構造の安全ガード（必要列の存在チェックと自動修正）
     if df.empty or len(df) < 5:
         df = pd.DataFrame([{
             'オーガニック順位': i, '商品名': f"【{portal_name}】{search_keyword} 厳選特選 {i}kg",
             '商品名文字数': 25, 'キーワード重複回数': 1, '寄付金額': 10000 + (i*500),
             'レビュー数': max(1, 150-i*3), 'レビュー評価': round(max(3.0, 4.8-(i*0.04)),2),
             '説明文文字数': max(100, 600-(i*15)), '画像枚数': max(1, 6-(i//8)),
-            '画像URL': 'https://via.placeholder.com/150?text=No+Image'
+            '画像URL': 'https://via.placeholder.com/150?text=No+Image',
+            '商品URL': 'https://www.google.com'
         } for i in range(1, 31)])
     else:
         for col in REQUIRED_COLUMNS:
@@ -309,10 +332,11 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
         genai.configure(api_key=API_KEY)
         model = genai.GenerativeModel('gemini-2.5-flash')
 
-        top3_info = "▼ 上位3商品の詳細（画像あり）\n"
+        top3_info = "▼ 上位3商品の詳細（画像・商品URLあり）\n"
         for idx, row in top_group.head(3).iterrows():
             img_src = row['画像URL'] if row['画像URL'] else "https://via.placeholder.com/150?text=No+Image"
-            top3_info += f"【{row['オーガニック順位']}位】 寄付額:{row['寄付金額']}円, レビュー評価:{row['レビュー評価']}, 画像URL:{img_src}, 商品名:{row['商品名']}\n"
+            prod_link = row['商品URL'] if row['商品URL'] else "#"
+            top3_info += f"【{row['オーガニック順位']}位】 寄付額:{row['寄付金額']}円, レビュー評価:{row['レビュー評価']}, 画像URL:{img_src}, 商品URL:{prod_link}, 商品名:{row['商品名']}\n"
 
         target_info_text = ""
         if target_data:
@@ -345,6 +369,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 7. 【指定返礼品の個別改善指導】（※特別診断対象データがある場合、現在の「商品名」「説明文」を踏まえた具体修正案・写真構図指示を表形式で出力）
 
 【厳守事項・フォーマットルール】
+・「1. 上位3商品のビジュアルと特徴」および商品名を表示する表では、提供された「商品URL」を使用して、商品名を <a href="商品URL" target="_blank">商品名</a> のように必ずHTMLアンカータグでリンク付きにして出力してください。クリックで対象ページが開くようにします。
 ・すべての表（<table>）の <th> タグには style="white-space: nowrap;" を必ず付与し、見出し項目が絶対に2行に改行されないよう横1行で出力してください。
 ・各表の列幅（width）は特定の列だけが極端に広くなったり狭くなったりしないよう、内容量に応じて自然で均等なバランスに調整してください。
 ・「1. 上位3商品のビジュアルと特徴」では、提供された画像URLを使い、必ず <img src="画像URL" width="120"> というHTMLタグにして、表の中にサムネイル画像が表示されるようにしてください。
