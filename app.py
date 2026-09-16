@@ -6,17 +6,17 @@ from bs4 import BeautifulSoup
 import requests
 import google.generativeai as genai
 
-st.set_page_config(page_title="全国絶品返礼品 SEO分析アナライザー", page_icon="🍱", layout="centered")
+st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
-# --- 華やかな和風ライトデザイン（背景画像＋明るいUI） ---
+# --- デザイン設定（サーモンピンク背景＋深紅の入力欄・ボタン） ---
 st.markdown("""
 <style>
-    /* 全体背景：和風イラスト画像＋明るいグラデーション overlay */
+    /* 全体背景：サーモンピンクの優しいグラデーション＋素材背景 */
     .stApp {
-        background-color: #fcfbfa;
+        background-color: #fcece9;
         background-image: 
-            linear-gradient(rgba(255, 253, 248, 0.85), rgba(255, 253, 248, 0.85)),
-            url("https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1200&q=80");
+            linear-gradient(rgba(252, 236, 233, 0.88), rgba(252, 236, 233, 0.88)),
+            url("https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=1200&q=80");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -28,81 +28,72 @@ st.markdown("""
         background: #ffffff;
         border-radius: 18px;
         padding: 24px;
-        box-shadow: 0 10px 30px rgba(184, 134, 11, 0.15);
+        box-shadow: 0 10px 30px rgba(184, 46, 62, 0.12);
         margin-bottom: 25px;
         color: #2c3e50;
-        border: 2px solid #f3d9a2;
-        border-top: 6px solid #d90429;
+        border: 2px solid #f7d5cd;
+        border-top: 6px solid #b82e3e;
     }
 
     .hero-title {
         font-size: 26px !important;
         font-weight: 800;
-        color: #b81414;
+        color: #b82e3e;
         margin-bottom: 6px;
     }
 
     .hero-subtitle {
         font-size: 13px;
-        color: #4a5568;
+        color: #5a4b4e;
         line-height: 1.6;
     }
 
-    .food-badges {
-        display: flex;
-        gap: 8px;
-        margin-top: 14px;
-        flex-wrap: wrap;
-    }
-
-    .badge {
-        background: #fff9db;
-        color: #d9480f;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: bold;
-        border: 1px solid #fab005;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-
-    /* フォームラベル文字色 */
+    /* フォームラベル */
     .stSelectbox label, .stTextInput label {
-        color: #1a1a1a !important;
+        color: #2c3e50 !important;
         font-weight: bold !important;
         font-size: 15px !important;
     }
 
-    /* ボタンカスタマイズ（朱色・和風グラデーション） */
+    /* 入力エリア（画像3のような深みのある深紅） */
+    div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {
+        background-color: #b82e3e !important;
+        border-radius: 10px !important;
+        border: none !important;
+    }
+    
+    div[data-baseweb="select"] span, input {
+        color: #ffffff !important;
+    }
+    
+    input::placeholder {
+        color: #f7cfc8 !important;
+    }
+
+    /* ボタン（画像3の深い赤基調） */
     div.stButton > button {
-        background: linear-gradient(90deg, #d90429 0%, #ff6b6b 100%) !important;
+        background: linear-gradient(90deg, #b82e3e 0%, #c83246 100%) !important;
         color: #ffffff !important;
         font-weight: bold !important;
         font-size: 18px !important;
         border: none !important;
         border-radius: 30px !important;
         padding: 14px 30px !important;
-        box-shadow: 0 6px 20px rgba(217, 4, 41, 0.3) !important;
+        box-shadow: 0 6px 20px rgba(184, 46, 62, 0.35) !important;
         transition: all 0.3s ease !important;
     }
 
     div.stButton > button:hover {
         transform: translateY(-2px) scale(1.02);
-        box-shadow: 0 8px 25px rgba(217, 4, 41, 0.5) !important;
+        box-shadow: 0 8px 25px rgba(184, 46, 62, 0.55) !important;
     }
 </style>
 
 <div class="hero-card">
-    <div class="hero-title">🍱 全国絶品返礼品 SEO分析アナライザー</div>
+    <div class="hero-title">🔍 ふるさと納税SEO分析システム</div>
     <div class="hero-subtitle">
-        全国の魅力あふれる特産品・豪華返礼品を競合データから徹底比較！<br>
+        ポータルサイトごとのデータを自動抽出・競合比較し、<br>
         AIが上位表示のための成功パターンと具体的な改善アクションを自動診断します。
-    </div>
-    <div class="food-badges">
-        <span class="badge">🥩 銘柄和牛</span>
-        <span class="badge">🦀 採れたて海鮮</span>
-        <span class="badge">🍇 旬の高級フルーツ</span>
-        <span class="badge">🍚 厳選米・地酒</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -211,7 +202,7 @@ def scrape_data(portal, keyword):
     return pd.DataFrame(items)
 
 # --- 実行ボタン ---
-if st.button("🚀 絶品SEO分析を開始する", type="primary", use_container_width=True):
+if st.button("🚀 分析を開始する", type="primary", use_container_width=True):
     now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     
     with st.spinner("データ取得中..."):
