@@ -8,10 +8,16 @@ import google.generativeai as genai
 
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
-# --- デザイン設定（サーモンピンク背景＋深紅の入力欄・ボタン） ---
+# --- デザイン設定（Zen Kaku Gothic New + 薄ピンク結果カード＋折り返し防止CSS） ---
 st.markdown("""
 <style>
-    /* 全体背景：サーモンピンクの優しいグラデーション＋素材背景 */
+    @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+
+    html, body, [class*="st-"], .stApp, .hero-title, .hero-subtitle, label, button, input, div, p, span {
+        font-family: 'Zen Kaku Gothic New', sans-serif !important;
+    }
+
+    /* 全体背景 */
     .stApp {
         background-color: #fcece9;
         background-image: 
@@ -37,25 +43,26 @@ st.markdown("""
 
     .hero-title {
         font-size: 26px !important;
-        font-weight: 800;
+        font-weight: 700;
         color: #b82e3e;
         margin-bottom: 6px;
     }
 
     .hero-subtitle {
-        font-size: 13px;
+        font-size: 14px;
         color: #5a4b4e;
         line-height: 1.6;
+        font-weight: 500;
     }
 
     /* フォームラベル */
     .stSelectbox label, .stTextInput label {
         color: #2c3e50 !important;
-        font-weight: bold !important;
+        font-weight: 700 !important;
         font-size: 15px !important;
     }
 
-    /* 入力エリア（画像3のような深みのある深紅） */
+    /* 入力エリア */
     div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {
         background-color: #b82e3e !important;
         border-radius: 10px !important;
@@ -64,17 +71,18 @@ st.markdown("""
     
     div[data-baseweb="select"] span, input {
         color: #ffffff !important;
+        font-weight: 500 !important;
     }
     
     input::placeholder {
         color: #f7cfc8 !important;
     }
 
-    /* ボタン（画像3の深い赤基調） */
+    /* ボタン */
     div.stButton > button {
         background: linear-gradient(90deg, #b82e3e 0%, #c83246 100%) !important;
         color: #ffffff !important;
-        font-weight: bold !important;
+        font-weight: 700 !important;
         font-size: 18px !important;
         border: none !important;
         border-radius: 30px !important;
@@ -86,6 +94,54 @@ st.markdown("""
     div.stButton > button:hover {
         transform: translateY(-2px) scale(1.02);
         box-shadow: 0 8px 25px rgba(184, 46, 62, 0.55) !important;
+    }
+
+    /* 分析結果表示エリア（見やすい薄ピンクのカード枠） */
+    .report-card {
+        background: rgba(255, 245, 246, 0.96) !important;
+        border-radius: 16px !important;
+        padding: 24px !important;
+        box-shadow: 0 10px 30px rgba(184, 46, 62, 0.15) !important;
+        border: 2px solid #f7c5cc !important;
+        margin-top: 25px !important;
+        color: #2c3e50 !important;
+    }
+
+    .report-card h2 {
+        color: #b82e3e !important;
+        border-bottom: 2px solid #b82e3e !important;
+        padding-bottom: 6px !important;
+        margin-top: 25px !important;
+        font-size: 20px !important;
+        font-weight: 700 !important;
+    }
+
+    /* テーブルの折り返し防止・装飾 */
+    .report-card table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        background-color: #ffffff !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+        margin: 15px 0 !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+    }
+
+    .report-card th {
+        white-space: nowrap !important; /* 見出しの折り返し（2行化）を絶対防止 */
+        background-color: #b82e3e !important;
+        color: #ffffff !important;
+        padding: 10px 12px !important;
+        font-size: 14px !important;
+        text-align: center !important;
+    }
+
+    .report-card td {
+        padding: 10px 12px !important;
+        border: 1px solid #f0d0d5 !important;
+        color: #2c3e50 !important;
+        font-size: 13px !important;
+        vertical-align: middle !important;
     }
 </style>
 
@@ -256,6 +312,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 7. 【指定返礼品の個別改善指導】（※特別診断対象データがある場合、現在の「商品名」「説明文」を踏まえた具体修正案・写真構図指示を表形式で出力）
 
 【厳守事項・フォーマットルール】
+・すべての表（<table>）の <th> タグには style="white-space: nowrap;" を必ず付与し、見出し項目（「順位」「サムネイル」「商品名」「寄付額」「レビュー評価」「ビジュアルと特徴」など）が絶対に2行に改行されないよう横1行で出力してください。
 ・「1. 上位3商品のビジュアルと特徴」では、提供された画像URLを使い、必ず <img src="画像URL" width="120"> というHTMLタグにして、表の中にサムネイル画像が表示されるようにしてください。
 ・文章の羅列ではなく、必ずHTMLの表（<table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">）を多用して、視覚的にわかりやすく整理してください。
 ・各項目は <h2> タグで見出しにしてください。
@@ -285,6 +342,6 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
         with col2:
             st.link_button("📊 スプレッドシートを開く", res_data.get("spreadsheetUrl"), use_container_width=True)
         st.divider()
-        st.markdown(report_text, unsafe_allow_html=True)
+        st.markdown(f'<div class="report-card">{report_text}</div>', unsafe_allow_html=True)
     else:
         st.error(f"Google連携エラー: {res_data.get('message')}")
