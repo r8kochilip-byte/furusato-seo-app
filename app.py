@@ -9,7 +9,7 @@ import google.generativeai as genai
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
 # === ★ここに取得したGoogle検索APIのキーを貼り付けてください ===
-GOOGLE_SEARCH_API_KEY = "AIzaSyDigseMNAEq5fUEUkvjUdoQRep6iCZQtAE"
+GOOGLE_SEARCH_API_KEY = "YOUR_GOOGLE_API_KEY_HERE"
 GOOGLE_SEARCH_CX = "569657d7ebf9949d3"
 
 # 固定Gemini APIキーとGAS URL
@@ -22,7 +22,7 @@ HEADERS = {
     "Accept-Language": "ja,en-US;q=0.9,en;q=0.8"
 }
 
-# --- デザイン設定（Zen Kaku Gothic New + サーモンピンク背景 + 深紅UI） ---
+# --- デザイン設定 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
@@ -179,13 +179,13 @@ def scrape_target_page(url):
     except Exception:
         return None
 
-# --- ★新機能：Google検索API経由でAmazonデータを取得 ---
+# --- デバッグ機能付き：Google検索API処理 ---
 def fetch_amazon_via_google(keyword):
     if not GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_API_KEY == "YOUR_GOOGLE_API_KEY_HERE":
+        st.error("❌ GOOGLE_SEARCH_API_KEY が未設定です。13行目にキーを貼り付けてください。")
         return pd.DataFrame()
     
     items = []
-    # 3ページ分（約30件）をGoogleから取得
     for start_idx in [1, 11, 21]:
         url = "https://www.googleapis.com/customsearch/v1"
         params = {
@@ -198,20 +198,22 @@ def fetch_amazon_via_google(keyword):
         try:
             res = requests.get(url, params=params, timeout=10)
             data = res.json()
+            
+            if 'error' in data:
+                st.error(f"❌ Google APIエラー: {data['error'].get('message')}")
+                break
+                
             if 'items' not in data:
                 break
                 
             for item in data['items']:
-                # 商品名のお掃除
                 title = item.get('title', '').replace(' - Amazon.co.jp', '').replace('Amazon.co.jp: ', '')
                 link = item.get('link', '')
                 snippet = item.get('snippet', '')
                 
-                # スニペットから寄付額（価格）を推測抽出
                 price_match = re.search(r'￥\s?([\d,]+)', snippet)
                 price = int(price_match.group(1).replace(',', '')) if price_match else (10000 + len(items)*500)
                 
-                # Googleがキャッシュしているサムネイル画像があれば取得
                 pagemap = item.get('pagemap', {})
                 cse_image = pagemap.get('cse_image', [])
                 img_url = cse_image[0].get('src', '') if cse_image else ""
@@ -222,15 +224,16 @@ def fetch_amazon_via_google(keyword):
                     '商品名文字数': len(title),
                     'キーワード重複回数': len(re.findall(keyword, title)),
                     '寄付金額': price,
-                    'レビュー数': 0, # APIからは取得困難なため0
+                    'レビュー数': 0,
                     'レビュー評価': 0.0,
                     '説明文文字数': len(snippet),
                     '画像枚数': 1 if img_url else 0,
                     '画像URL': img_url,
                     '商品URL': link
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            st.error(f"❌ 通信例外が発生しました: {str(e)}")
+            break
             
     return pd.DataFrame(items)
 
