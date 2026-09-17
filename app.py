@@ -9,7 +9,7 @@ import google.generativeai as genai
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
 # === ★ここに取得したGoogle検索APIのキーを貼り付けてください ===
-GOOGLE_SEARCH_API_KEY = "YOUR_GOOGLE_API_KEY_HERE"
+GOOGLE_SEARCH_API_KEY = "AIzaSyDigseMNAEq5fUEUkvjUdoQRep6iCZQtAE"
 GOOGLE_SEARCH_CX = "569657d7ebf9949d3"
 
 # 固定Gemini APIキーとGAS URL
