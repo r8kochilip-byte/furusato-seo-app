@@ -8,8 +8,8 @@ import google.generativeai as genai
 
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
-# === ★ここに取得したGoogle検索APIのキーを貼り付けてください ===
-GOOGLE_SEARCH_API_KEY = "AIzaSyBho0MUGA_9zAtikNyn5QVcuG3ZKDLo_t0"
+# === 設定済みAPIキー（確認用） ===
+GOOGLE_SEARCH_API_KEY = "AIzaSyDigseMNAEq5fUEUkvJudoQRep6iCZQtAE"
 GOOGLE_SEARCH_CX = "569657d7ebf9949d3"
 
 # 固定Gemini APIキーとGAS URL
@@ -179,10 +179,10 @@ def scrape_target_page(url):
     except Exception:
         return None
 
-# --- デバッグ機能付き：Google検索API処理 ---
+# --- Google API通信のエラー詳細出力機能 ---
 def fetch_amazon_via_google(keyword):
     if not GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_API_KEY == "YOUR_GOOGLE_API_KEY_HERE":
-        st.error("❌ GOOGLE_SEARCH_API_KEY が未設定です。13行目にキーを貼り付けてください。")
+        st.error("❌ GOOGLE_SEARCH_API_KEY が初期値のままです。")
         return pd.DataFrame()
     
     items = []
@@ -199,11 +199,15 @@ def fetch_amazon_via_google(keyword):
             res = requests.get(url, params=params, timeout=10)
             data = res.json()
             
+            # APIからのエラーレスポンスを画面に直接吐き出す
             if 'error' in data:
-                st.error(f"❌ Google APIエラー: {data['error'].get('message')}")
+                err_msg = data['error'].get('message', '不明なエラー')
+                err_code = data['error'].get('code', '')
+                st.error(f"🚨 Google API通信エラー [{err_code}]: {err_msg}")
                 break
                 
             if 'items' not in data:
+                st.warning(f"⚠️ Google検索結果が0件でした。（検索クエリ: ふるさと納税 {keyword}）")
                 break
                 
             for item in data['items']:
@@ -232,7 +236,7 @@ def fetch_amazon_via_google(keyword):
                     '商品URL': link
                 })
         except Exception as e:
-            st.error(f"❌ 通信例外が発生しました: {str(e)}")
+            st.error(f"🚨 通信例外が発生しました: {str(e)}")
             break
             
     return pd.DataFrame(items)
@@ -324,7 +328,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
         target_data = scrape_target_page(target_url.strip())
 
     if df.empty or len(df) < 5:
-        st.warning("⚠️ APIキー未設定等のため、プレビューデータで処理します。")
+        st.warning("⚠️ 外部データ取得エラー等のため、安全用プレビューデータで処理します。")
         df = pd.DataFrame([{
             'オーガニック順位': i, '商品名': f"【{portal_name}限定】{search_keyword} 厳選セット {i}号",
             '商品名文字数': 25, 'キーワード重複回数': 1, '寄付金額': 10000 + (i*500),
