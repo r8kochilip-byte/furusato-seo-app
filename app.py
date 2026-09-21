@@ -149,7 +149,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- ScrapingAnt 経由で HTML を取得する関数（タイムアウトを60秒に延長） ---
+# --- ScrapingAnt 経由で HTML を取得する関数 ---
 def fetch_html_via_scrapingant(target_url, use_browser=False):
     if not SCRAPINGANT_API_KEY or SCRAPINGANT_API_KEY == "YOUR_SCRAPINGANT_API_KEY_HERE":
         st.error("❌ SCRAPINGANT_API_KEY が設定されていません。")
@@ -163,7 +163,6 @@ def fetch_html_via_scrapingant(target_url, use_browser=False):
         'browser': 'true' if use_browser else 'false'
     }
     try:
-        # タイムアウトを60秒に延長
         res = requests.get(api_endpoint, params=params, timeout=60)
         if res.status_code == 200:
             return res.text
@@ -202,7 +201,7 @@ def scrape_target_page(url):
 # --- 各ポータルサイトスクレイピング処理 ---
 def scrape_data(portal, keyword):
     url_map = {
-        "楽天ふるさと納税": f"https://search.rakuten.co.jp/search/event/furusato/?s=4&v=2&kw={keyword}",
+        "楽天ふるさと納税": f"https://search.rakuten.co.jp/search/event/furusato/?k={keyword}",
         "ふるさとチョイス": f"https://www.furusato-tax.jp/search?q={keyword}",
         "ふるなび": f"https://furunavi.jp/Product/Search?keyword={keyword}",
         "さとふる": f"https://www.satofull.jp/products/list.php?s4={keyword}",
@@ -210,7 +209,6 @@ def scrape_data(portal, keyword):
     }
     
     target_url = url_map.get(portal)
-    # Amazonとさとふるのみブラウザレンダリングを有効化して高速化
     use_browser = True if portal in ["Amazon", "さとふる"] else False
     
     html = fetch_html_via_scrapingant(target_url, use_browser=use_browser)
@@ -219,18 +217,21 @@ def scrape_data(portal, keyword):
 
     soup = BeautifulSoup(html, 'html.parser')
     items = []
+    current_rank = 1
 
     try:
         if portal == "楽天ふるさと納税":
             search_items = soup.select('div.searchresultitem') or soup.select('div.item') or soup.select('.grid-item') or soup.select('[data-track-item]')
-            for i, item in enumerate(search_items[:30], 1):
+            for item in search_items:
                 t = item.select_one('h2') or item.select_one('.title') or item.select_one('a.item-name')
                 p = item.select_one('.price') or item.select_one('.important')
                 link_elem = item.select_one('a.item-name') or item.select_one('a')
                 img_url = extract_img_url(item.select_one('img'))
                 
                 title = t.text.strip() if t else ""
-                if not title: continue
+                # ★タイトルに検索キーワードが含まれていないノイズ商品は除外★
+                if not title or keyword not in title: 
+                    continue
                 
                 price = int(re.sub(r'[^\d]', '', p.text)) if p else 0
                 prod_url = link_elem.get('href') if link_elem else ""
@@ -245,22 +246,26 @@ def scrape_data(portal, keyword):
                     if sm: review_score = float(sm.group(1))
 
                 items.append({
-                    'オーガニック順位': i, '商品名': title, '商品名文字数': len(title),
+                    'オーガニック順位': current_rank, '商品名': title, '商品名文字数': len(title),
                     'キーワード重複回数': len(re.findall(keyword, title)), '寄付金額': price,
                     'レビュー数': review_count, 'レビュー評価': review_score,
                     '説明文文字数': len(title) * 3, '画像枚数': 5, '画像URL': img_url, '商品URL': prod_url
                 })
+                current_rank += 1
+                if current_rank > 30: break
 
         elif portal == "Amazon":
             search_items = soup.select('div[data-component-type="s-search-result"]')
-            for i, item in enumerate(search_items[:30], 1):
+            for item in search_items:
                 t = item.select_one('h2 a span') or item.select_one('h2')
                 p = item.select_one('.a-price-whole')
                 link_elem = item.select_one('h2 a')
                 img_elem = item.select_one('img.s-image')
                 
                 title = t.text.strip() if t else ""
-                if not title: continue
+                # ★タイトルに検索キーワードが含まれていないノイズ商品は除外★
+                if not title or keyword not in title: 
+                    continue
                 
                 price = int(re.sub(r'[^\d]', '', p.text)) if p else 10000
                 prod_url = "https://www.amazon.co.jp" + link_elem.get('href') if link_elem and link_elem.get('href').startswith('/') else (link_elem.get('href') if link_elem else "")
@@ -280,11 +285,13 @@ def scrape_data(portal, keyword):
                     if cm: review_count = int(cm.group(1).replace(',', ''))
 
                 items.append({
-                    'オーガニック順位': i, '商品名': title, '商品名文字数': len(title),
+                    'オーガニック順位': current_rank, '商品名': title, '商品名文字数': len(title),
                     'キーワード重複回数': len(re.findall(keyword, title)), '寄付金額': price,
                     'レビュー数': review_count, 'レビュー評価': review_score,
                     '説明文文字数': len(title) * 2, '画像枚数': 5, '画像URL': img_url, '商品URL': prod_url
                 })
+                current_rank += 1
+                if current_rank > 30: break
 
         else:
             base_domains = {
@@ -293,24 +300,29 @@ def scrape_data(portal, keyword):
                 "さとふる": "https://www.satofull.jp"
             }
             elements = soup.select('.p-search-result__item, .product-item, article, .p-product-card, [class*="ProductCard"], [class*="product_card"], .item')
-            for i, item in enumerate(elements[:30], 1):
+            for item in elements:
                 t = item.select_one('h2, h3, .title, .product-name, [class*="title"], [class*="name"]')
                 p = item.select_one('.price, .product-price, [class*="price"]')
                 link_elem = item.select_one('a')
                 img_url = extract_img_url(item.select_one('img'))
                 title = t.text.strip() if t else ""
-                if not title: continue
                 
-                price = int(re.sub(r'[^\d]', '', p.text)) if p else (10000 + i*500)
+                # ★タイトルに検索キーワードが含まれていないノイズ商品は除外★
+                if not title or keyword not in title: 
+                    continue
+                
+                price = int(re.sub(r'[^\d]', '', p.text)) if p else (10000 + current_rank*500)
                 prod_url = link_elem.get('href') if link_elem else ""
                 if prod_url.startswith('/'): prod_url = base_domains.get(portal, "") + prod_url
                 
                 items.append({
-                    'オーガニック順位': i, '商品名': title, '商品名文字数': len(title),
+                    'オーガニック順位': current_rank, '商品名': title, '商品名文字数': len(title),
                     'キーワード重複回数': len(re.findall(keyword, title)), '寄付金額': price,
-                    'レビュー数': max(1, 120-i*3), 'レビュー評価': round(max(3.5, 4.8-(i*0.04)),2),
+                    'レビュー数': max(1, 120-current_rank*3), 'レビュー評価': round(max(3.5, 4.8-(current_rank*0.04)),2),
                     '説明文文字数': len(title)*2, '画像枚数': 4, '画像URL': img_url, '商品URL': prod_url
                 })
+                current_rank += 1
+                if current_rank > 30: break
     except Exception as e:
         st.error(f"解析エラー: {str(e)}")
 
@@ -397,7 +409,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 ・マークダウン記号（#、**、*, | など）は絶対に含めず、強調には <b> や <span style="color:red;"> を使用してください。
 ・```html などのコードブロック記法は一切不要です。HTMLの中身だけを出力してください。"""
 
-        response = model.generate_content(PROMPT + "\n" + summary_text)
+        response = model.generate content(PROMPT + "\n" + summary_text)
         report_text = response.text.replace("```html", "").replace("```", "").strip()
 
     with st.spinner("Google連携中..."):
