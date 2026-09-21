@@ -8,7 +8,7 @@ import google.generativeai as genai
 
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
-# === ★ここにScrapingAntのAPI tokenを貼り付けてください ===
+# === ScrapingAnt API Token ===
 SCRAPINGANT_API_KEY = "25082eaa554e4bb498a613df0a3648e1"
 
 # 固定Gemini APIキーとGAS URL
@@ -152,12 +152,13 @@ st.markdown("""
 # --- ScrapingAnt 経由で HTML を取得する関数 ---
 def fetch_html_via_scrapingant(target_url, use_browser=False):
     if not SCRAPINGANT_API_KEY or SCRAPINGANT_API_KEY == "YOUR_SCRAPINGANT_API_KEY_HERE":
-        st.error("❌ SCRAPINGANT_API_KEY が設定されていません。12行目にAPI Tokenを貼り付けてください。")
+        st.error("❌ SCRAPINGANT_API_KEY が設定されていません。")
         return None
         
     api_endpoint = "https://api.scrapingant.com/v2/general"
+    # ScrapingAntの仕様に合わせて x-api-key パラメータを使用
     params = {
-        'api_key': SCRAPINGANT_API_KEY,
+        'x-api-key': SCRAPINGANT_API_KEY,
         'url': target_url,
         'proxy_country': 'JP',
         'browser': 'true' if use_browser else 'false'
