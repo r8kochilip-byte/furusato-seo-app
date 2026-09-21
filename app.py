@@ -5,6 +5,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import requests
 import google.generativeai as genai
+import time
 
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
@@ -149,7 +150,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- ScrapingAnt 経由で HTML を取得する関数 ---
+# --- ScrapingAnt 経由で HTML を取得する関数（リトライ強化版） ---
 def fetch_html_via_scrapingant(target_url, use_browser=True):
     if not SCRAPINGANT_API_KEY or SCRAPINGANT_API_KEY == "YOUR_SCRAPINGANT_API_KEY_HERE":
         st.error("❌ SCRAPINGANT_API_KEY が設定されていません。")
@@ -162,16 +163,25 @@ def fetch_html_via_scrapingant(target_url, use_browser=True):
         'proxy_country': 'JP',
         'browser': 'true' if use_browser else 'false'
     }
-    try:
-        res = requests.get(api_endpoint, params=params, timeout=60)
-        if res.status_code == 200:
-            return res.text
-        else:
-            st.error(f"🚨 データ取得エラー ({res.status_code}): {res.text[:200]}")
+
+    for attempt in range(3):
+        try:
+            res = requests.get(api_endpoint, params=params, timeout=60)
+            if res.status_code == 200:
+                return res.text
+            elif res.status_code in [409, 429]:
+                time.sleep(4)
+                continue
+            else:
+                st.error(f"🚨 データ取得エラー ({res.status_code}): {res.text[:200]}")
+                return None
+        except Exception as e:
+            if attempt < 2:
+                time.sleep(4)
+                continue
+            st.error(f"🚨 通信例外: {str(e)}")
             return None
-    except Exception as e:
-        st.error(f"🚨 通信例外: {str(e)}")
-        return None
+    return None
 
 def extract_img_url(img_elem):
     if not img_elem:
@@ -186,6 +196,7 @@ def extract_img_url(img_elem):
 def scrape_target_page(url):
     if not url or not url.startswith("http"):
         return None
+    time.sleep(2)
     html = fetch_html_via_scrapingant(url, use_browser=True)
     if not html:
         return None
@@ -200,16 +211,17 @@ def scrape_target_page(url):
 
 # --- 各ポータルサイトスクレイピング処理 ---
 def scrape_data(portal, keyword):
+    # ★修正：URLパラメータの誤りを完全修正しました（楽天はkw=, さとふる等はq=）
     url_map = {
-        "楽天ふるさと納税": f"https://search.rakuten.co.jp/search/event/furusato/?k={keyword}",
+        "楽天ふるさと納税": f"https://search.rakuten.co.jp/search/event/furusato/?kw={keyword}",
         "ふるさとチョイス": f"https://www.furusato-tax.jp/search?q={keyword}",
         "ふるなび": f"https://furunavi.jp/Product/Search?keyword={keyword}",
-        "さとふる": f"https://www.satofull.jp/products/list.php?s4={keyword}",
+        "さとふる": f"https://www.satofull.jp/products/list.php?q={keyword}",
         "Amazon": f"https://www.amazon.co.jp/s?k=ふるさと納税+{keyword}"
     }
     
     target_url = url_map.get(portal)
-    use_browser = True # 全サイトでより確実にデータを取るためにブラウザモードをON
+    use_browser = True
     
     html = fetch_html_via_scrapingant(target_url, use_browser=use_browser)
     if not html:
@@ -223,7 +235,7 @@ def scrape_data(portal, keyword):
 
     try:
         if portal == "楽天ふるさと納税":
-            search_items = soup.select('div.searchresultitem, div.item, .grid-item, [data-track-item]')
+            search_items = soup.select('div.searchresultitem, .dui-card, div.item, .grid-item, [data-track-item]')
             for item in search_items:
                 t = item.select_one('h2, .title, a.item-name')
                 p = item.select_one('.price, .important')
@@ -346,7 +358,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
         target_data = scrape_target_page(target_url.strip())
 
     if df.empty or len(df) < 3:
-        st.warning("⚠️ データ取得数が少ないため、安全用プレビューデータで補完処理を行います。")
+        st.warning(f"⚠️ 実際のデータが {len(df)} 件しか取得できなかったため、安全用プレビューデータで補完処理を行います。")
         df = pd.DataFrame([{
             'オーガニック順位': i, '商品名': f"【{portal_name}限定】{search_keyword} 厳選セット {i}号",
             '商品名文字数': 25, 'キーワード重複回数': 1, '寄付金額': 10000 + (i*500),
@@ -356,6 +368,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
             '商品URL': f'https://www.google.com/search?q={portal_name}+{search_keyword}'
         } for i in range(1, 31)])
     else:
+        st.info(f"✅ ポータルサイトから {len(df)} 件の「本物の商品データ」を抽出しました！")
         for col in REQUIRED_COLUMNS:
             if col not in df.columns:
                 if col in ['オーガニック順位', '商品名文字数', 'キーワード重複回数', '寄付金額', 'レビュー数', '説明文文字数', '画像枚数']:
@@ -416,11 +429,9 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 
         response = model.generate_content(PROMPT + "\n" + summary_text)
         
-        # ★AI出力の強力なクリーニング処理（コードブロック化を絶対に防ぐ）
         raw_text = response.text
-        raw_text = re.sub(r"```[a-zA-Z]*", "", raw_text)  # ```html などを削除
-        raw_text = raw_text.replace("```", "")            # 残った ``` を削除
-        # 行頭のスペースをすべて削除して再結合
+        raw_text = re.sub(r"```[a-zA-Z]*", "", raw_text)
+        raw_text = raw_text.replace("```", "")
         report_text = "\n".join([line.strip() for line in raw_text.split('\n') if line.strip() != ""])
 
     with st.spinner("Google連携中..."):
