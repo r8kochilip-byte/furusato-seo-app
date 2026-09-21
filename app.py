@@ -219,17 +219,24 @@ def scrape_data(portal, keyword):
     items = []
     current_rank = 1
 
+    # ★改善：キーワードをスペースで分割し、大文字小文字の区別をなくした「柔軟な検索条件」リストを作成
+    search_terms = [k.lower() for k in keyword.replace(' ', ' ').split() if k]
+
     try:
         if portal == "楽天ふるさと納税":
-            search_items = soup.select('div.searchresultitem') or soup.select('div.item') or soup.select('.grid-item') or soup.select('[data-track-item]')
+            search_items = soup.select('div.searchresultitem, div.item, .grid-item, [data-track-item]')
             for item in search_items:
-                t = item.select_one('h2') or item.select_one('.title') or item.select_one('a.item-name')
-                p = item.select_one('.price') or item.select_one('.important')
-                link_elem = item.select_one('a.item-name') or item.select_one('a')
+                t = item.select_one('h2, .title, a.item-name')
+                p = item.select_one('.price, .important')
+                link_elem = item.select_one('a.item-name, a')
                 img_url = extract_img_url(item.select_one('img'))
                 
                 title = t.text.strip() if t else ""
-                if not title or keyword not in title: 
+                
+                # ★柔軟なフィルター：検索キーワードがちゃんとタイトルに入っているか判定
+                title_lower = title.lower()
+                is_match = all(term in title_lower for term in search_terms) if search_terms else True
+                if not title or not is_match: 
                     continue
                 
                 price = int(re.sub(r'[^\d]', '', p.text)) if p else 0
@@ -237,7 +244,7 @@ def scrape_data(portal, keyword):
                 if prod_url.startswith('//'): prod_url = 'https:' + prod_url
                 
                 review_count, review_score = 0, 0.0
-                review_elem = item.select_one('.legend') or item.select_one('.score') or item.select_one('.ratting')
+                review_elem = item.select_one('.legend, .score, .ratting')
                 if review_elem:
                     cm = re.search(r'([\d,]+)件', review_elem.text)
                     if cm: review_count = int(cm.group(1).replace(',', ''))
@@ -256,21 +263,24 @@ def scrape_data(portal, keyword):
         elif portal == "Amazon":
             search_items = soup.select('div[data-component-type="s-search-result"]')
             for item in search_items:
-                t = item.select_one('h2 a span') or item.select_one('h2')
+                t = item.select_one('h2 a span, h2')
                 p = item.select_one('.a-price-whole')
                 link_elem = item.select_one('h2 a')
                 img_elem = item.select_one('img.s-image')
                 
                 title = t.text.strip() if t else ""
-                if not title or keyword not in title: 
+                
+                title_lower = title.lower()
+                is_match = all(term in title_lower for term in search_terms) if search_terms else True
+                if not title or not is_match: 
                     continue
                 
                 price = int(re.sub(r'[^\d]', '', p.text)) if p else 10000
                 prod_url = "https://www.amazon.co.jp" + link_elem.get('href') if link_elem and link_elem.get('href').startswith('/') else (link_elem.get('href') if link_elem else "")
                 img_url = extract_img_url(img_elem)
                 
-                rating_elem = item.select_one('i.a-icon-star-small') or item.select_one('.a-icon-alt')
-                review_count_elem = item.select_one('span.a-size-base.s-underline-text') or item.select_one('div.a-row.a-size-small span:last-child')
+                rating_elem = item.select_one('i.a-icon-star-small, .a-icon-alt')
+                review_count_elem = item.select_one('span.a-size-base.s-underline-text, div.a-row.a-size-small span:last-child')
                 
                 review_score = 0.0
                 if rating_elem:
@@ -305,7 +315,9 @@ def scrape_data(portal, keyword):
                 img_url = extract_img_url(item.select_one('img'))
                 title = t.text.strip() if t else ""
                 
-                if not title or keyword not in title: 
+                title_lower = title.lower()
+                is_match = all(term in title_lower for term in search_terms) if search_terms else True
+                if not title or not is_match: 
                     continue
                 
                 price = int(re.sub(r'[^\d]', '', p.text)) if p else (10000 + current_rank*500)
