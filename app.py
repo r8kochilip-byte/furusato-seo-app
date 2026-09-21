@@ -150,7 +150,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- ScrapingAnt 経由で HTML を取得する関数 ---
-def fetch_html_via_scrapingant(target_url, use_browser=False):
+def fetch_html_via_scrapingant(target_url, use_browser=True):
     if not SCRAPINGANT_API_KEY or SCRAPINGANT_API_KEY == "YOUR_SCRAPINGANT_API_KEY_HERE":
         st.error("❌ SCRAPINGANT_API_KEY が設定されていません。")
         return None
@@ -186,7 +186,7 @@ def extract_img_url(img_elem):
 def scrape_target_page(url):
     if not url or not url.startswith("http"):
         return None
-    html = fetch_html_via_scrapingant(url, use_browser=False)
+    html = fetch_html_via_scrapingant(url, use_browser=True)
     if not html:
         return None
     try:
@@ -209,7 +209,7 @@ def scrape_data(portal, keyword):
     }
     
     target_url = url_map.get(portal)
-    use_browser = True if portal in ["Amazon", "さとふる"] else False
+    use_browser = True # 全サイトでより確実にデータを取るためにブラウザモードをON
     
     html = fetch_html_via_scrapingant(target_url, use_browser=use_browser)
     if not html:
@@ -219,7 +219,6 @@ def scrape_data(portal, keyword):
     items = []
     current_rank = 1
 
-    # ★改善：キーワードをスペースで分割し、大文字小文字の区別をなくした「柔軟な検索条件」リストを作成
     search_terms = [k.lower() for k in keyword.replace(' ', ' ').split() if k]
 
     try:
@@ -232,8 +231,6 @@ def scrape_data(portal, keyword):
                 img_url = extract_img_url(item.select_one('img'))
                 
                 title = t.text.strip() if t else ""
-                
-                # ★柔軟なフィルター：検索キーワードがちゃんとタイトルに入っているか判定
                 title_lower = title.lower()
                 is_match = all(term in title_lower for term in search_terms) if search_terms else True
                 if not title or not is_match: 
@@ -269,7 +266,6 @@ def scrape_data(portal, keyword):
                 img_elem = item.select_one('img.s-image')
                 
                 title = t.text.strip() if t else ""
-                
                 title_lower = title.lower()
                 is_match = all(term in title_lower for term in search_terms) if search_terms else True
                 if not title or not is_match: 
@@ -416,10 +412,16 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 ・文章の羅列ではなく、必ずHTMLの表（<table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">）を多用して、視覚的にわかりやすく整理してください。
 ・各項目は <h2> タグで見出しにしてください。
 ・マークダウン記号（#、**、*, | など）は絶対に含めず、強調には <b> や <span style="color:red;"> を使用してください。
-・```html などのコードブロック記法は一切不要です。HTMLの中身だけを出力してください。"""
+・【重要】HTMLコードを出力する際、インデント（行頭のスペースやタブ）は一切使用せず、すべての行を左詰めで出力してください。"""
 
         response = model.generate_content(PROMPT + "\n" + summary_text)
-        report_text = response.text.replace("```html", "").replace("```", "").strip()
+        
+        # ★AI出力の強力なクリーニング処理（コードブロック化を絶対に防ぐ）
+        raw_text = response.text
+        raw_text = re.sub(r"```[a-zA-Z]*", "", raw_text)  # ```html などを削除
+        raw_text = raw_text.replace("```", "")            # 残った ``` を削除
+        # 行頭のスペースをすべて削除して再結合
+        report_text = "\n".join([line.strip() for line in raw_text.split('\n') if line.strip() != ""])
 
     with st.spinner("Google連携中..."):
         raw_data_list = [df.columns.values.tolist()] + df.values.tolist()
