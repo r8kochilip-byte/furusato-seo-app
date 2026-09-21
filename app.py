@@ -150,13 +150,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- ScrapingAnt 経由で HTML を取得する関数 ---
-def fetch_html_via_scrapingant(target_url, use_browser=False):
+def fetch_html_via_scrapingant(target_url, use_browser=True):
     if not SCRAPINGANT_API_KEY or SCRAPINGANT_API_KEY == "YOUR_SCRAPINGANT_API_KEY_HERE":
         st.error("❌ SCRAPINGANT_API_KEY が設定されていません。")
         return None
         
     api_endpoint = "https://api.scrapingant.com/v2/general"
-    # ScrapingAntの仕様に合わせて x-api-key パラメータを使用
     params = {
         'x-api-key': SCRAPINGANT_API_KEY,
         'url': target_url,
@@ -164,11 +163,11 @@ def fetch_html_via_scrapingant(target_url, use_browser=False):
         'browser': 'true' if use_browser else 'false'
     }
     try:
-        res = requests.get(api_endpoint, params=params, timeout=30)
+        res = requests.get(api_endpoint, params=params, timeout=40)
         if res.status_code == 200:
             return res.text
         else:
-            st.error(f"🚨 ScrapingAnt エラー ({res.status_code}): {res.text[:200]}")
+            st.error(f"🚨 データ取得エラー ({res.status_code}): {res.text[:200]}")
             return None
     except Exception as e:
         st.error(f"🚨 通信例外: {str(e)}")
@@ -210,8 +209,8 @@ def scrape_data(portal, keyword):
     }
     
     target_url = url_map.get(portal)
-    # AmazonとさとふるはJavaScript実行（browser=true）でアクセス
-    use_browser = True if portal in ["Amazon", "さとふる"] else False
+    # 動的ページに対応するため基本 browser=True でレンダリング実行
+    use_browser = True
     
     html = fetch_html_via_scrapingant(target_url, use_browser=use_browser)
     if not html:
@@ -292,10 +291,14 @@ def scrape_data(portal, keyword):
                 "ふるなび": "https://furunavi.jp",
                 "さとふる": "https://www.satofull.jp"
             }
-            elements = soup.select('.p-search-result__item, .product-item, article, .p-product-card')
+            # 要素取得のセレクタパターンを拡張
+            elements = soup.select('.p-search-result__item, .product-item, article, .p-product-card, [class*="ProductCard"], [class*="product_card"]')
+            if not elements:
+                elements = soup.select('li[class*="item"], div[class*="item"]')
+                
             for i, item in enumerate(elements[:30], 1):
-                t = item.select_one('h2, h3, .title, .product-name, .p-product-card__title')
-                p = item.select_one('.price, .product-price, .p-product-card__price')
+                t = item.select_one('h2, h3, .title, .product-name, [class*="title"], [class*="name"]')
+                p = item.select_one('.price, .product-price, [class*="price"]')
                 link_elem = item.select_one('a')
                 img_url = extract_img_url(item.select_one('img'))
                 title = t.text.strip() if t else ""
@@ -324,7 +327,7 @@ target_url = st.text_input("3. 改善したい特定の返礼品URLを入力（�
 if st.button("🚀 分析を開始する", type="primary", use_container_width=True):
     now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     
-    with st.spinner("ScrapingAnt経由で本物のデータを取得中..."):
+    with st.spinner("最新データを取得中..."):
         df = scrape_data(portal_name, search_keyword)
         target_data = scrape_target_page(target_url.strip())
 
