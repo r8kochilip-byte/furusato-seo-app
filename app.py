@@ -229,7 +229,6 @@ def scrape_data(portal, keyword):
                 img_url = extract_img_url(item.select_one('img'))
                 
                 title = t.text.strip() if t else ""
-                # ★タイトルに検索キーワードが含まれていないノイズ商品は除外★
                 if not title or keyword not in title: 
                     continue
                 
@@ -263,7 +262,6 @@ def scrape_data(portal, keyword):
                 img_elem = item.select_one('img.s-image')
                 
                 title = t.text.strip() if t else ""
-                # ★タイトルに検索キーワードが含まれていないノイズ商品は除外★
                 if not title or keyword not in title: 
                     continue
                 
@@ -307,7 +305,6 @@ def scrape_data(portal, keyword):
                 img_url = extract_img_url(item.select_one('img'))
                 title = t.text.strip() if t else ""
                 
-                # ★タイトルに検索キーワードが含まれていないノイズ商品は除外★
                 if not title or keyword not in title: 
                     continue
                 
@@ -409,7 +406,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
 ・マークダウン記号（#、**、*, | など）は絶対に含めず、強調には <b> や <span style="color:red;"> を使用してください。
 ・```html などのコードブロック記法は一切不要です。HTMLの中身だけを出力してください。"""
 
-        response = model.generate content(PROMPT + "\n" + summary_text)
+        response = model.generate_content(PROMPT + "\n" + summary_text)
         report_text = response.text.replace("```html", "").replace("```", "").strip()
 
     with st.spinner("Google連携中..."):
