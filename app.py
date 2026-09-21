@@ -149,8 +149,8 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- ScrapingAnt 経由で HTML を取得する関数 ---
-def fetch_html_via_scrapingant(target_url, use_browser=True):
+# --- ScrapingAnt 経由で HTML を取得する関数（タイムアウトを60秒に延長） ---
+def fetch_html_via_scrapingant(target_url, use_browser=False):
     if not SCRAPINGANT_API_KEY or SCRAPINGANT_API_KEY == "YOUR_SCRAPINGANT_API_KEY_HERE":
         st.error("❌ SCRAPINGANT_API_KEY が設定されていません。")
         return None
@@ -163,7 +163,8 @@ def fetch_html_via_scrapingant(target_url, use_browser=True):
         'browser': 'true' if use_browser else 'false'
     }
     try:
-        res = requests.get(api_endpoint, params=params, timeout=40)
+        # タイムアウトを60秒に延長
+        res = requests.get(api_endpoint, params=params, timeout=60)
         if res.status_code == 200:
             return res.text
         else:
@@ -209,8 +210,8 @@ def scrape_data(portal, keyword):
     }
     
     target_url = url_map.get(portal)
-    # 動的ページに対応するため基本 browser=True でレンダリング実行
-    use_browser = True
+    # Amazonとさとふるのみブラウザレンダリングを有効化して高速化
+    use_browser = True if portal in ["Amazon", "さとふる"] else False
     
     html = fetch_html_via_scrapingant(target_url, use_browser=use_browser)
     if not html:
@@ -291,11 +292,7 @@ def scrape_data(portal, keyword):
                 "ふるなび": "https://furunavi.jp",
                 "さとふる": "https://www.satofull.jp"
             }
-            # 要素取得のセレクタパターンを拡張
-            elements = soup.select('.p-search-result__item, .product-item, article, .p-product-card, [class*="ProductCard"], [class*="product_card"]')
-            if not elements:
-                elements = soup.select('li[class*="item"], div[class*="item"]')
-                
+            elements = soup.select('.p-search-result__item, .product-item, article, .p-product-card, [class*="ProductCard"], [class*="product_card"], .item')
             for i, item in enumerate(elements[:30], 1):
                 t = item.select_one('h2, h3, .title, .product-name, [class*="title"], [class*="name"]')
                 p = item.select_one('.price, .product-price, [class*="price"]')
