@@ -8,6 +8,7 @@ import google.generativeai as genai
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
 # === 楽天公式 API Key (Application ID) ===
+# ハイフンを含む新しい形式のIDをそのまま使用します
 RAKUTEN_APP_ID = "6bcc262a-d30f-4d56-9803-a51d235d58ef"
 
 # 固定Gemini APIキーとGAS URL
@@ -150,16 +151,21 @@ st.markdown("""
 
 # --- 楽天公式APIを使った超高速データ取得 ---
 def fetch_rakuten_data(keyword):
+    # 最新の楽天IchibaItem/Search APIエンドポイント
     api_url = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601"
+    
+    # パラメータ設定（Application IDはURLパラメータとして渡す）
     params = {
         "applicationId": RAKUTEN_APP_ID,
         "keyword": f"ふるさと納税 {keyword}",
         "hits": 30,
-        "sort": "+standard" # おすすめ・売れ筋標準順
+        "sort": "-reviewCount" # レビューが多い順（ふるさと納税のSEO上位傾向に近い）
     }
     
     try:
+        # ヘッダーはシンプルにし、Requestsにパラメータ処理を任せる
         res = requests.get(api_url, params=params, timeout=10)
+        
         if res.status_code == 200:
             data = res.json()
             raw_items = data.get("Items", [])
@@ -204,7 +210,8 @@ def fetch_rakuten_data(keyword):
         return pd.DataFrame()
 
 # --- メイン画面レイアウト ---
-portal_name = st.selectbox("1. 対象ポータルサイトを選択", ["楽天ふるさと納税", "ふるさとチョイス", "ふるなび", "さとふる", "Amazon"])
+# 今回は楽天API専用に特化させるため、選択肢を絞っています
+portal_name = st.selectbox("1. 対象ポータルサイトを選択", ["楽天ふるさと納税（公式API・ブロック回避版）"])
 search_keyword = st.text_input("2. 分析したいキーワードを入力", value="ハンバーグ")
 target_url = st.text_input("3. 改善したい特定の返礼品URLを入力（任意）", value="", placeholder="https://item.rakuten.co.jp/...")
 
@@ -215,7 +222,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
         df = fetch_rakuten_data(search_keyword)
 
     if df.empty or len(df) < 3:
-        st.warning("⚠️ リアルデータの取得数が少ないため、予備データで補完処理を行います。")
+        st.warning("⚠️ リアルデータの取得数が少ないため、予備データで補完処理を行います。APIキーの設定を確認してください。")
         df = pd.DataFrame([{
             'オーガニック順位': i, '商品名': f"【楽天ふるさと納税】{search_keyword} 厳選セット {i}号",
             '商品名文字数': 25, 'キーワード重複回数': 1, '寄付金額': 10000 + (i*500),
@@ -255,7 +262,7 @@ if st.button("🚀 分析を開始する", type="primary", use_container_width=T
         target_info_text = f"\n▼ 分析対象キーワード: {search_keyword}\n"
 
         summary_text = f"""
-対象ポータル: {portal_name} / キーワード: {search_keyword} / 日時: {now_str}
+対象ポータル: 楽天ふるさと納税 / キーワード: {search_keyword} / 日時: {now_str}
 {top3_info}
 {target_info_text}
 上位平均: レビュー数 {top_group['レビュー数'].mean():.1f}件, 評価 {top_group['レビュー評価'].mean():.2f}, 寄付額 {top_group['寄付金額'].mean():.0f}円, タイトル {top_group['商品名文字数'].mean():.1f}字
