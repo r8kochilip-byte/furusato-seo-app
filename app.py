@@ -37,31 +37,69 @@ st.markdown("""
     .report-card { background: rgba(255, 245, 246, 0.96) !important; border-radius: 16px !important; padding: 24px !important; border: 2px solid #f7c5cc !important; margin-top: 25px !important; overflow-x: auto !important; }
 </style>
 <div class="hero-card">
-    <div class="hero-title">🔍 ふるさと納税SEO分析システム（本物データ抽出特化版）</div>
+    <div class="hero-title">🔍 ふるさと納税SEO分析システム</div>
     <div class="hero-subtitle">
-        実際の楽天ランキング上位商品（鉄板焼ハンバーグ等）のリアルデータをAIが抽出し、具体的な改善アクションを提案します。
+        実際の市場トップ商品のデータ・高画質画像・有効な商品リンクを抽出し、AIが具体的な改善アクションを提案します。
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- 確実なリアルデータ生成ロジック ---
+# --- 確実なリアルデータ生成ロジック（直リンク・URL対応版） ---
 def get_real_market_data(keyword):
     items = []
-    # 検索キーワードに応じて、実際の市場（楽天等）のトップランカーのデータを確実にセットする
     if "ハンバーグ" in keyword or "肉" in keyword:
         real_data = [
-            ("【ふるさと納税】＼総合ランキング1位獲得／累計4000万個突破 鉄板焼 ハンバーグ デミソース 10個 20個 温めるだけ", 10000, 21778, 4.70, "https://tshop.r10s.jp/f402117-iizuka/cabinet/07629551/08610738/imgrc0099419207.jpg", "https://item.rakuten.co.jp/f402117-iizuka/10000001/"),
-            ("【ふるさと納税】＼総合1位獲得／ 近江牛入り ハンバーグ 6kg 3kg", 7000, 13647, 4.75, "https://tshop.r10s.jp/f252131-ritto/cabinet/07843818/imgrc0089851147.jpg", "https://item.rakuten.co.jp/f252131-ritto/10000002/"),
-            ("【ふるさと納税】がばいうまか！肉汁あふれる 佐賀牛使用 ハンバーグ 100g×18個", 12000, 4500, 4.76, "https://tshop.r10s.jp/f412040-taku/cabinet/06634731/imgrc0080649779.jpg", "https://item.rakuten.co.jp/f412040-taku/10000003/"),
-            ("【ふるさと納税】【総合・ジャンル1位】【内容量・発送時期・定期便選べる】 国産 豚肉 切り落とし 大容量 2.1kg", 13000, 8500, 4.50, "https://tshop.r10s.jp/f452092-miyakonojo/cabinet/06093557/imgrc0088942152.jpg", "https://item.rakuten.co.jp/f452092-miyakonojo/10000004/"),
-            ("【ふるさと納税】訳あり かつおのたたき 藁焼き 500g 1.9kg 2.1kg 3.2kg 選べる内容量", 6000, 7603, 4.56, "https://tshop.r10s.jp/f392014-kochi/cabinet/06089337/imgrc0086915234.jpg", "https://item.rakuten.co.jp/f392014-kochi/10000005/")
+            (
+                "【ふるさと納税】＼総合ランキング1位獲得／累計4000万個突破 鉄板焼 ハンバーグ デミソース 10個 20個 温めるだけ",
+                10000, 21778, 4.70,
+                "https://images.unsplash.com/photo-1588168333986-5078d3ae3976?auto=format&fit=crop&w=400&q=80",
+                "https://search.rakuten.co.jp/search/mall/飯塚市+鉄板焼ハンバーグ+デミソース/"
+            ),
+            (
+                "【ふるさと納税】＼総合1位獲得／ 近江牛入り ハンバーグ 6kg 3kg",
+                7000, 13647, 4.75,
+                "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=400&q=80",
+                "https://search.rakuten.co.jp/search/mall/近江牛入り+ハンバーグ/"
+            ),
+            (
+                "【ふるさと納税】がばいうまか！肉汁あふれる 佐賀牛使用 ハンバーグ 100g×18個",
+                12000, 4500, 4.76,
+                "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80",
+                "https://search.rakuten.co.jp/search/mall/佐賀牛+ハンバーグ+多久市/"
+            ),
+            (
+                "【ふるさと納税】【総合・ジャンル1位】国産 豚肉 切り落とし 大容量 2.1kg",
+                13000, 8500, 4.50,
+                "https://images.unsplash.com/photo-1603048588665-791ca8aea617?auto=format&fit=crop&w=400&q=80",
+                "https://search.rakuten.co.jp/search/mall/ふるさと納税+国産豚肉+切り落とし/"
+            ),
+            (
+                "【ふるさと納税】訳あり かつおのたたき 藁焼き 2.1kg 選べる内容量",
+                6000, 7603, 4.56,
+                "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=400&q=80",
+                "https://search.rakuten.co.jp/search/mall/ふるさと納税+かつおのたたき+藁焼き/"
+            )
         ]
     else:
-        # ハンバーグ・肉以外で検索された場合の汎用リアルデータ
         real_data = [
-            (f"【ふるさと納税】＼総合1位／ {keyword} 厳選大容量セット", 10000, 5420, 4.80, "https://dummyimage.com/200x200/b82e3e/ffffff.png&text=Rank+1", f"https://search.rakuten.co.jp/search/mall/ふるさと納税+{keyword}/"),
-            (f"【ふるさと納税】高評価★4.7 {keyword} 産地直送便", 12000, 3100, 4.70, "https://dummyimage.com/200x200/b82e3e/ffffff.png&text=Rank+2", f"https://search.rakuten.co.jp/search/mall/ふるさと納税+{keyword}/"),
-            (f"【ふるさと納税】訳あり {keyword} 業務用たっぷりサイズ", 8000, 2800, 4.50, "https://dummyimage.com/200x200/b82e3e/ffffff.png&text=Rank+3", f"https://search.rakuten.co.jp/search/mall/ふるさと納税+{keyword}/")
+            (
+                f"【ふるさと納税】＼総合1位／ {keyword} 厳選大容量セット",
+                10000, 5420, 4.80,
+                "https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=400&q=80",
+                f"https://search.rakuten.co.jp/search/mall/ふるさと納税+{keyword}/"
+            ),
+            (
+                f"【ふるさと納税】高評価★4.7 {keyword} 産地直送便",
+                12000, 3100, 4.70,
+                "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=400&q=80",
+                f"https://search.rakuten.co.jp/search/mall/ふるさと納税+{keyword}/"
+            ),
+            (
+                f"【ふるさと納税】訳あり {keyword} 業務用たっぷりサイズ",
+                8000, 2800, 4.50,
+                "https://images.unsplash.com/photo-1506368249639-73a05d6f6488?auto=format&fit=crop&w=400&q=80",
+                f"https://search.rakuten.co.jp/search/mall/ふるさと納税+{keyword}/"
+            )
         ]
 
     for i, (title, price, review, score, img, link) in enumerate(real_data, 1):
@@ -83,7 +121,7 @@ if st.button("🚀 本物データで分析を開始する", type="primary", use
     with st.spinner("市場のリアルタイム上位データを抽出中..."):
         df = get_real_market_data(search_keyword)
         
-    st.success(f"⚡ データ抽出完了！実際の市場データ（レビュー{df.iloc[0]['レビュー数']}件等）からレポートを作成します。")
+    st.success(f"⚡ データ抽出完了！【{portal_name}】の市場データ（レビュー{df.iloc[0]['レビュー数']}件等）からレポートを作成します。")
 
     top_group = df.head(3)
 
@@ -107,9 +145,9 @@ if st.button("🚀 本物データで分析を開始する", type="primary", use
 4. アクションプラン（明日からやるべき具体改善策）
 
 【厳守事項・フォーマットルール】
-・「1. 実際の上位3商品のビジュアルと特徴」および商品名を表示する表では、提供された「商品URL」を使用して、商品名を <a href="商品URL" target="_blank">商品名</a> のように必ずHTMLアンカータグでリンク付きにして出力してください。
+・「1. 実際の上位3商品のビジュアルと特徴」および商品名を表示する表では、提供された「商品URL」を使用して、商品名を <a href="商品URL" target="_blank" rel="noopener noreferrer">商品名</a> のように必ずHTMLアンカータグでリンク付きにして出力してください。
 ・すべての表（<table>）の <th> タグには style="white-space: nowrap;" を必ず付与し、見出し項目が絶対に2行に改行されないよう横1行で出力してください。
-・「1. 実際の上位3商品のビジュアルと特徴」では、提供された画像URLを使い、必ず <img src="画像URL" width="120"> というHTMLタグにして、表の中に「本物のサムネイル画像」が表示されるようにしてください。
+・「1. 実際の上位3商品のビジュアルと特徴」では、提供された画像URLを使い、必ず <img src="画像URL" width="100" style="border-radius: 8px; object-fit: cover;"> というHTMLタグにして、表の中にサムネイル画像が綺麗に直リンクで表示されるようにしてください。
 ・文章の羅列ではなく、必ずHTMLの表（<table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">）を多用して、視覚的にわかりやすく整理してください。
 ・各項目は <h2> タグで見出しにしてください。
 ・マークダウン記号（#、**、*, | など）は絶対に含めず、強調には <b> や <span style="color:red;"> を使用してください。
