@@ -42,7 +42,7 @@ st.markdown("""
 <div class="hero-card">
     <div class="hero-title">🔍 ふるさと納税SEO分析システム</div>
     <div class="hero-subtitle">
-        AIが選択されたポータルサイトのSEO傾向（Amazonならシンプル、楽天なら装飾多め等）を自動リサーチ。<br>
+        AIが選択されたポータルサイトのSEO傾向を自動リサーチ。<br>
         各市場に最適化されたリアルな競合データから、具体的な改善アクションを提案します。
     </div>
 </div>
@@ -93,7 +93,7 @@ def get_image_urls(keyword):
             "https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?auto=format&fit=crop&w=400&q=80"
         ]
 
-# --- ★新機能: AIによるポータルごとのリアル市場動的リサーチ ---
+# --- AIによるポータルごとのリアル市場動的リサーチ ---
 def get_dynamic_market_data(portal, keyword):
     if portal == "楽天ふるさと納税":
         base_url = f"https://search.rakuten.co.jp/search/mall/ふるさと納税+{keyword}/"
