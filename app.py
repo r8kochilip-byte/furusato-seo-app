@@ -34,6 +34,14 @@ st.markdown("""
     }
     .hero-title { font-size: 26px !important; font-weight: 700; color: #b82e3e; margin-bottom: 6px; }
     .hero-subtitle { font-size: 14px; color: #5a4b4e; line-height: 1.6; font-weight: 500; }
+    
+    /* 項目1〜4のテキストラベルを鮮明な濃い赤色に指定 */
+    label, .stSelectbox label, .stTextInput label, div[data-testid="stFileUploader"] label, .stFileUploader label {
+        color: #b82e3e !important;
+        font-weight: 700 !important;
+        font-size: 16px !important;
+    }
+
     div.stButton > button {
         background: linear-gradient(90deg, #b82e3e 0%, #c83246 100%) !important; color: #ffffff !important; font-weight: 700 !important; font-size: 18px !important; border: none !important; border-radius: 30px !important; padding: 14px 30px !important; box-shadow: 0 6px 20px rgba(184, 46, 62, 0.35) !important; transition: all 0.3s ease !important;
     }
@@ -131,13 +139,13 @@ uploaded_files = st.file_uploader("4. 診断したい返礼品画像をアップ
 
 uploaded_images = []
 if uploaded_files:
-    st.markdown("<b>📷 アップロードされた診断対象画像:</b>", unsafe_allow_html=True)
+    st.markdown("<b style='color:#b82e3e;'>📷 アップロードされた診断対象画像:</b>", unsafe_allow_html=True)
     cols = st.columns(min(len(uploaded_files), 5))
     for idx, file in enumerate(uploaded_files[:10]):
         img = Image.open(file)
         uploaded_images.append(img)
         with cols[idx % 5]:
-            st.image(img, caption=f"画像 {idx+1}", use_column_width=True)
+            st.image(img, caption=f"画像 {idx+1}", use_container_width=True)
 
 if st.button("🚀 AI自動リサーチ＆ビジュアル診断を開始する", type="primary", use_container_width=True):
     now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
