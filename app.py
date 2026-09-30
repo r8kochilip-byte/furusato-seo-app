@@ -48,15 +48,17 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- 特定URLの解析ロジック ---
+# --- ★修正: 特定URLの解析ロジック（楽天の文字化け対策） ---
 def scrape_target_page(url):
     if not url or not url.startswith("http"):
         return None
     api_endpoint = "https://api.scrapingant.com/v2/general"
     params = {'x-api-key': SCRAPINGANT_API_KEY, 'url': url, 'proxy_country': 'JP', 'browser': 'false'}
     try:
-        res = requests.get(api_endpoint, params=params, timeout=10)
+        res = requests.get(api_endpoint, params=params, timeout=15)
         if res.status_code == 200:
+            # 楽天（EUC-JP）などの文字化けを防ぐため、適切な文字コードを自動判定して適用
+            res.encoding = res.apparent_encoding
             soup = BeautifulSoup(res.text, 'html.parser')
             title = soup.title.text.strip() if soup.title else "タイトル取得不可"
             meta_desc = soup.find('meta', {'name': 'description'}) or soup.find('meta', {'property': 'og:description'})
@@ -68,7 +70,7 @@ def scrape_target_page(url):
 
 # --- キーワードに応じた画像URLリストの取得 ---
 def get_image_urls(keyword):
-    if "肉" in keyword or "ハンバーグ" in keyword or "牛" in keyword or "豚" in keyword:
+    if "肉" in keyword or "ハンバーグ" in keyword or "牛" in keyword or "豚" in keyword or "鶏" in keyword:
         return [
             "https://images.unsplash.com/photo-1588168333986-5078d3ae3976?auto=format&fit=crop&w=400&q=80",
             "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=400&q=80",
@@ -218,7 +220,8 @@ if st.button("🚀 AI自動リサーチで分析を開始する", type="primary"
         raw_text = raw_text.replace("```", "")
         report_text = "\n".join([line.strip() for line in raw_text.split('\n') if line.strip() != ""])
 
-    with st.spinner("Google連携中..."):
+    # ★修正: スプレッドシート出力の待機時間を延長し、タイムアウトによる古いデータの残留を防ぐ
+    with st.spinner("Googleスプレッドシート・ドキュメントを生成中...（約10〜30秒かかります）"):
         raw_data_list = [df.columns.values.tolist()] + df.values.tolist()
         payload = {
             "portal": portal_name,
@@ -227,7 +230,7 @@ if st.button("🚀 AI自動リサーチで分析を開始する", type="primary"
             "rawData": raw_data_list
         }
         try:
-            res = requests.post(DEFAULT_GAS_URL, json=payload, timeout=10)
+            res = requests.post(DEFAULT_GAS_URL, json=payload, timeout=60)
             res_data = res.json()
         except:
             res_data = {"status": "error", "message": "GAS通信エラー"}
