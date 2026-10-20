@@ -3,6 +3,7 @@ import re
 import datetime
 import pandas as pd
 import json
+import time
 from bs4 import BeautifulSoup
 import requests
 import google.generativeai as genai
@@ -10,11 +11,17 @@ import google.generativeai as genai
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
 # 固定Gemini APIキーとGAS URL
-API_KEY = "AQ.Ab8RN6LTyB119_PMkFLetYei3bWC8-g7SqxuwrG2evupb59Y4g"
+DEFAULT_API_KEY = "AQ.Ab8RN6LTyB119_PMkFLetYei3bWC8-g7SqxuwrG2evupb59Y4g"
 DEFAULT_GAS_URL = "https://script.google.com/a/macros/uproject.jp/s/AKfycby6Vdg2dTPIldJ2pl99M9NXiEjUKLCmTBOf72odGuscQDrt6zmyTXlFJCgSsE2AuQRvCQ/exec"
 SCRAPINGANT_API_KEY = "25082eaa554e4bb498a613df0a3648e1"
 
 REQUIRED_COLUMNS = ['オーガニック順位', '商品名', '商品名文字数', 'キーワード重複回数', '寄付金額', 'レビュー数', 'レビュー評価', '説明文文字数', '商品URL']
+
+# --- サイドバー：APIキー設定 ---
+with st.sidebar:
+    st.markdown("### ⚙️ システム設定")
+    user_api_key = st.text_input("Gemini APIキー（予備用）", value="", type="password", placeholder="制限時は新しいキーを入力")
+    active_api_key = user_api_key.strip() if user_api_key.strip() else DEFAULT_API_KEY
 
 # --- デザイン設定 ---
 st.markdown("""
@@ -34,7 +41,6 @@ st.markdown("""
     .hero-title { font-size: 26px !important; font-weight: 700; color: #b82e3e; margin-bottom: 6px; }
     .hero-subtitle { font-size: 14px; color: #5a4b4e; line-height: 1.6; font-weight: 500; }
     
-    /* 入力欄のラベルを赤色で強調 */
     label, .stSelectbox label, .stTextInput label {
         color: #b82e3e !important;
         font-weight: 700 !important;
@@ -47,19 +53,18 @@ st.markdown("""
     div.stButton > button:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 25px rgba(184, 46, 62, 0.55) !important; }
     .report-card { background: rgba(255, 245, 246, 0.96) !important; border-radius: 16px !important; padding: 24px !important; border: 2px solid #f7c5cc !important; margin-top: 25px !important; overflow-x: auto !important; }
     
-    /* マーカー（強調）のスタイルを明るい黄色に */
     mark { background-color: #fff3cd; padding: 2px 4px; border-radius: 4px; color: #856404; font-weight: bold; }
 </style>
 <div class="hero-card">
     <div class="hero-title">🔍 ふるさと納税SEO分析システム</div>
     <div class="hero-subtitle">
-        AIが選択されたポータルサイトのSEO傾向を自動リサーチ。<br>
-        各市場に最適化されたリアルな競合データから、具体的な改善アクションを提案します。
+        AIが選択ポータルのSEO傾向と競合動向を即座に分析。<br>
+        各市場に最適化されたリアルなデータに基づき、具体的な改善アクションを提案します。
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- 特定URLの解析ロジック（楽天の文字化け対策含む） ---
+# --- 特定URLの解析ロジック ---
 def scrape_target_page(url):
     if not url or not url.startswith("http"):
         return None
@@ -78,67 +83,14 @@ def scrape_target_page(url):
         pass
     return {"url": url, "title": "指定の返礼品", "description": "詳細はリンク先を参照"}
 
-# --- キーワードに応じた画像生成（ダミー生成プロンプト用） ---
+# --- キーワードに応じた画像URL ---
 def get_improvement_image_url(keyword):
     if "肉" in keyword or "ハンバーグ" in keyword or "牛" in keyword or "豚" in keyword or "鶏" in keyword:
         return "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=600&q=80"
     elif "海鮮" in keyword or "蟹" in keyword or "ホタテ" in keyword or "いくら" in keyword or "魚" in keyword:
         return "https://images.unsplash.com/photo-1611143669185-af224c5e3252?auto=format&fit=crop&w=600&q=80"
-    elif "米" in keyword or "野菜" in keyword or "果物" in keyword:
-        return "https://images.unsplash.com/photo-1595858602633-1490236a99a8?auto=format&fit=crop&w=600&q=80"
     else:
         return "https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=600&q=80"
-
-# --- AIによるポータルごとのリアル市場動的リサーチ ---
-def get_dynamic_market_data(portal, keyword):
-    genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-2.5-flash')
-    
-    prompt = f"""
-あなたは日本のEコマース市場アナリストです。
-ポータルサイト「{portal}」でキーワード「{keyword}」と検索した際に、現在上位表示されているであろうトップ5商品のデータを予測し、JSONフォーマットのみで出力してください。
-
-【重要条件】
-1. 商品名(title)は、「{portal}」の実際の検索結果によくあるSEO傾向を完全に再現した名前にしてください。
-2. 価格(price)、レビュー数(review)、評価スコア(score)は市場相場に合わせてください。
-3. リンク(url)は具体的な個別商品ページのURL形式を出力してください。
-
-[
-  {{"title": "具体的な商品名1", "price": 10000, "review": 1500, "score": 4.6, "url": "https://item.rakuten.co.jp/example/1/"}},
-  {{"title": "具体的な商品名2", "price": 8000, "review": 800, "score": 4.3, "url": "https://item.rakuten.co.jp/example/2/"}},
-  {{"title": "具体的な商品名3", "price": 12000, "review": 300, "score": 4.8, "url": "https://item.rakuten.co.jp/example/3/"}},
-  {{"title": "具体的な商品名4", "price": 9500, "review": 120, "score": 4.1, "url": "https://item.rakuten.co.jp/example/4/"}},
-  {{"title": "具体的な商品名5", "price": 15000, "review": 50, "score": 4.9, "url": "https://item.rakuten.co.jp/example/5/"}}
-]
-"""
-    try:
-        res = model.generate_content(prompt)
-        text = res.text
-        match = re.search(r'\[.*\]', text, re.DOTALL)
-        if match:
-            ai_data = json.loads(match.group(0))
-        else:
-            raise Exception("JSON parse failed")
-    except:
-        ai_data = [
-            {"title": f"【{portal}】{keyword} 定番セット", "price": 10000, "review": 150, "score": 4.5, "url": f"https://www.google.com/search?q={portal}+{keyword}"} for _ in range(5)
-        ]
-        
-    items = []
-    for i, data in enumerate(ai_data[:5]):
-        title = data.get("title", f"商品 {i+1}")
-        items.append({
-            'オーガニック順位': i + 1, 
-            '商品名': title, 
-            '商品名文字数': len(title),
-            'キーワード重複回数': title.count(keyword), 
-            '寄付金額': data.get("price", 10000),
-            'レビュー数': data.get("review", 100), 
-            'レビュー評価': data.get("score", 4.5), 
-            '説明文文字数': len(title)*2,
-            '商品URL': data.get("url", f"https://www.google.com/search?q={portal}+{keyword}")
-        })
-    return pd.DataFrame(items)
 
 # --- メイン画面レイアウト ---
 portal_name = st.selectbox("1. 対象ポータルサイトを選択", ["楽天ふるさと納税", "ふるさとチョイス", "さとふる", "ふるなび", "Amazon"])
@@ -148,83 +100,28 @@ target_url = st.text_input("3. 改善したい特定の返礼品URLを入力（�
 if st.button("🚀 AI自動リサーチで分析を開始する", type="primary", use_container_width=True):
     now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     
-    with st.spinner(f"【{portal_name}】の市場動向をAIがリアルタイム調査中..."):
-        df = get_dynamic_market_data(portal_name, search_keyword)
+    with st.spinner("URL情報の確認中..."):
         target_data = scrape_target_page(target_url.strip())
         improvement_img = get_improvement_image_url(search_keyword)
-        
-    st.success(f"⚡ 調査完了！【{portal_name}】の実際の市場データに基づきレポートを作成します。")
 
-    top_group = df.head(3)
+    target_info_text = ""
+    if target_data:
+        target_info_text = f"\n▼ 【特別診断対象返礼品】\nURL: {target_data['url']}\n現在の商品名: {target_data['title']}\n"
 
-    with st.spinner("AIが競合成功パターンと改善策を生成中..."):
-        genai.configure(api_key=API_KEY)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+    # API呼び出しを「1回」に集約した統合プロンプト
+    COMBINED_PROMPT = f"""あなたは「ふるさと納税およびEコマース」のSEO・デザインスペシャリストです。
+ポータルサイト「{portal_name}」におけるキーワード「{search_keyword}」の市場動向を分析し、以下のフォーマットに厳格に従って出力してください。
 
-        top3_info = "▼ 実際の市場上位3商品の詳細\n"
-        for idx, row in top_group.iterrows():
-            top3_info += f"【{row['オーガニック順位']}位】 寄付額:{row['寄付金額']}円, レビュー件数:{row['レビュー数']}件, 評価:{row['レビュー評価']}, 商品URL:{row['商品URL']}, 商品名:{row['商品名']}\n"
+まずは、{portal_name}で上位表示されるであろう競合上位5商品の推測データをJSONで作成し、その直後にHTML形式の改善レポートを作成してください。
 
-        target_info_text = ""
-        if target_data:
-            target_info_text = f"\n▼ 【特別診断対象返礼品】\nURL: {target_data['url']}\n現在の商品名: {target_data['title']}\n"
+出力の区切りとして、必ず `===HTML_REPORT===` という文字列を挿入してください。
 
-        summary_text = f"""
-対象ポータル: {portal_name} / キーワード: {search_keyword} / 日時: {now_str}
-{top3_info}
-{target_info_text}
-改善イメージ画像URL: {improvement_img}
-"""
-        PROMPT = """あなたは「ふるさと納税およびEコマース」のSEO・デザインスペシャリストです。提供された「実際の上位商品データ」に基づき、売上アップのための改善レポートを作成してください。
-
-1. 実際の上位3商品の特徴（表形式：順位、商品名(リンク付き)、価格、レビュー件数、評価、特徴）※画像列は作成しないでください。
-2. 成功パターン（上位の共通点）
-3. NG施策（避けるべきこと）
-4. 【重要】商品画像の改善案（提供された「改善イメージ画像URL」を使って <img src="URL" style="border-radius:12px; width:100%; max-width:400px; margin-bottom:15px;"> という形で画像を貼り付け、その下に「なぜこの構図が良いのか」「どんな文字(例:大容量!/レンチン!)を入れるべきか」を箇条書きで解説してください。）
-5. アクションプラン（明日からやるべき具体改善策）
-6. 【指定返礼品の特別診断】（※対象URLがある場合のみ）
-
-【厳守事項・フォーマットルール】
-・「1. 実際の上位3商品の特徴」の表では、提供された「商品URL」を使用して、商品名を <a href="商品URL" target="_blank" rel="noopener noreferrer">商品名</a> のように必ずHTMLアンカータグでリンク付きにして出力してください。
-・すべての表（<table>）の <th> タグには style="white-space: nowrap;" を必ず付与し、見出し項目が改行されないよう横1行で出力してください。
-・強調したい重要なキーワードや文章は、<mark>キーワード</mark> のように必ず <mark> タグを使用してハイライトしてください。（** や spanタグは使用しないでください）
-・文章の羅列ではなく、HTMLの表（<table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">）を多用して整理してください。
-・各項目は <h2> タグで見出しにしてください。
-・マークダウン記号（#、**、*, | など）は絶対に含めず、全てHTMLで出力してください。
-・インデント（行頭のスペースやタブ）は一切使用せず、すべての行を左詰めで出力してください。"""
-
-        response = model.generate_content(PROMPT + "\n" + summary_text)
-        
-        raw_text = response.text
-        raw_text = re.sub(r"```[a-zA-Z]*", "", raw_text)
-        raw_text = raw_text.replace("```", "")
-        report_text = "\n".join([line.strip() for line in raw_text.split('\n') if line.strip() != ""])
-
-    with st.spinner("Googleスプレッドシート・ドキュメントを生成中...（約10〜30秒かかります）"):
-        raw_data_list = [df.columns.values.tolist()] + df.values.tolist()
-        payload = {
-            "portal": portal_name,
-            "keyword": search_keyword,
-            "reportText": report_text,
-            "rawData": raw_data_list
-        }
-        try:
-            res = requests.post(DEFAULT_GAS_URL, json=payload, timeout=60)
-            res_data = res.json()
-        except:
-            res_data = {"status": "error", "message": "GAS通信エラー"}
-
-    if res_data.get("status") == "success":
-        st.balloons()
-        st.success("🎉 分析およびGoogle連携が完了しました！")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.link_button("📄 生成されたGoogleドキュメントを開く", res_data.get("docUrl"), use_container_width=True)
-        with col2:
-            st.link_button("📊 スプレッドシートを開く", res_data.get("spreadsheetUrl"), use_container_width=True)
-        st.divider()
-        st.markdown(f'<div class="report-card">{report_text}</div>', unsafe_allow_html=True)
-    else:
-        st.warning("⚠️ Google連携がタイムアウトしましたが、レポートは正常に生成されました。")
-        st.divider()
-        st.markdown(f'<div class="report-card">{report_text}</div>', unsafe_allow_html=True)
+【構成形式】
+```json
+[
+  {{"rank": 1, "title": "商品名1", "price": 10000, "review": 1500, "score": 4.6, "url": "[https://item.rakuten.co.jp/shop/1/](https://item.rakuten.co.jp/shop/1/)"}},
+  {{"rank": 2, "title": "商品名2", "price": 8000, "review": 800, "score": 4.3, "url": "[https://item.rakuten.co.jp/shop/2/](https://item.rakuten.co.jp/shop/2/)"}},
+  {{"rank": 3, "title": "商品名3", "price": 12000, "review": 300, "score": 4.8, "url": "[https://item.rakuten.co.jp/shop/3/](https://item.rakuten.co.jp/shop/3/)"}},
+  {{"rank": 4, "title": "商品名4", "price": 9500, "review": 120, "score": 4.1, "url": "[https://item.rakuten.co.jp/shop/4/](https://item.rakuten.co.jp/shop/4/)"}},
+  {{"rank": 5, "title": "商品名5", "price": 15000, "review": 50, "score": 4.9, "url": "[https://item.rakuten.co.jp/shop/5/](https://item.rakuten.co.jp/shop/5/)"}}
+]
