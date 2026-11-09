@@ -12,18 +12,13 @@ from PIL import Image
 st.set_page_config(page_title="ふるさと納税SEO分析システム", page_icon="🔍", layout="centered")
 
 # --- APIキー設定（StreamlitのSecretsから安全に読み込む） ---
-DEFAULT_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
+active_api_key = st.secrets.get("GEMINI_API_KEY", "")
 RAKUTEN_APP_ID = st.secrets.get("RAKUTEN_APP_ID", "")
 RAKUTEN_ACCESS_KEY = st.secrets.get("RAKUTEN_ACCESS_KEY", "")
 DEFAULT_GAS_URL = "https://script.google.com/a/macros/uproject.jp/s/AKfycby6Vdg2dTPIldJ2pl99M9NXiEjUKLCmTBOf72odGuscQDrt6zmyTXlFJCgSsE2AuQRvCQ/exec"
 SCRAPINGANT_API_KEY = "25082eaa554e4bb498a613df0a3648e1"
 
 REQUIRED_COLUMNS = ['オーガニック順位', '商品名', '商品名文字数', 'キーワード重複回数', '寄付金額', 'レビュー数', 'レビュー評価', '説明文文字数', '商品URL']
-
-with st.sidebar:
-    st.markdown("### ⚙️ システム設定")
-    user_api_key = st.text_input("Gemini APIキー（予備用）", value="", type="password", placeholder="制限時は新しいキーを入力")
-    active_api_key = user_api_key.strip() if user_api_key.strip() else DEFAULT_API_KEY
 
 st.markdown("""
 <style>
@@ -59,8 +54,7 @@ st.markdown("""
 <div class="hero-card">
     <div class="hero-title">🔍 ふるさと納税SEO＆画像ビジュアル分析システム</div>
     <div class="hero-subtitle">
-        楽天API（公式）と連動し、100%正確な市場データを抽出。<br>
-        さらに商品画像を直接アップロードすれば、AIがビジュアルを診断し【POINT別】の具体的な修正指示書を作成します。
+        AIが検索し、ふるさと納税の返礼品に関して具体的な修正案を作成します。
     </div>
 </div>
 """, unsafe_allow_html=True)
