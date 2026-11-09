@@ -91,6 +91,7 @@ def get_improvement_image_url(keyword):
     else:
         return "https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=600&q=80"
 
+# --- 楽天APIからの実データ取得関数 ---
 def get_rakuten_real_data(keyword):
     url = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601"
     params = {
