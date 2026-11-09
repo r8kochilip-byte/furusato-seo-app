@@ -52,7 +52,7 @@ st.markdown("""
     mark { background-color: #fff3cd; padding: 2px 4px; border-radius: 4px; color: #856404; font-weight: bold; }
 </style>
 <div class="hero-card">
-    <div class="hero-title">🔍 ふるさと納税SEO＆画像ビジュアル分析システム</div>
+    <div class="hero-title">🔍 ふるさと納税SEO分析システム</div>
     <div class="hero-subtitle">
         AIが検索し、ふるさと納税の返礼品に関して具体的な修正案を作成します。
     </div>
