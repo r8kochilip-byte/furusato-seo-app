@@ -2,5 +2,6 @@ streamlit
 pandas
 beautifulsoup4
 requests
-google-generativeai==0.5.4
+google-generativeai
 Pillow
+protobuf==3.20.3
